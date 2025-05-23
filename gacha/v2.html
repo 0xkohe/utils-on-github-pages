@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arkadia ガチャ α版 🂡</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes gradient {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
+        }
+        
+        @keyframes slide-in {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes bounce-in {
+            0% {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(200%); }
+        }
+        
+        @keyframes spin-3d {
+            0% { 
+                transform: rotateY(0deg) rotateX(0deg) scale(1);
+                opacity: 1;
+            }
+            25% { 
+                transform: rotateY(180deg) rotateX(10deg) scale(1.1);
+                opacity: 0.8;
+            }
+            50% { 
+                transform: rotateY(360deg) rotateX(-10deg) scale(0.9);
+                opacity: 0.6;
+            }
+            75% { 
+                transform: rotateY(540deg) rotateX(10deg) scale(1.05);
+                opacity: 0.8;
+            }
+            100% { 
+                transform: rotateY(720deg) rotateX(0deg) scale(1);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes float-up {
+            0% {
+                transform: translateY(100px) scale(0);
+                opacity: 0;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100px) scale(1.5);
+                opacity: 0;
+            }
+        }
+        
+        @keyframes electric-pulse {
+            0%, 100% {
+                box-shadow: 0 0 5px currentColor, 0 0 10px currentColor, 0 0 20px currentColor;
+            }
+            50% {
+                box-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 40px currentColor;
+            }
+        }
+        
+        @keyframes rainbow-border {
+            0% { border-color: #ff0000; }
+            16% { border-color: #ff8800; }
+            33% { border-color: #ffff00; }
+            50% { border-color: #00ff00; }
+            66% { border-color: #0088ff; }
+            83% { border-color: #ff00ff; }
+            100% { border-color: #ff0000; }
+        }
+        
+        .animate-gradient {
+            background-size: 200% 200%;
+            animation: gradient 3s ease infinite;
+        }
+        
+        .animate-shake {
+            animation: shake 0.3s ease infinite;
+        }
+        
+        .animate-slide-in {
+            animation: slide-in 0.5s ease forwards;
+        }
+        
+        .animate-bounce-in {
+            animation: bounce-in 0.6s ease forwards;
+        }
+        
+        .animate-shimmer {
+            animation: shimmer 2s ease infinite;
+        }
+        
+        .animate-spin-3d {
+            animation: spin-3d 0.8s ease-in-out infinite;
+            perspective: 1000px;
+            transform-style: preserve-3d;
+        }
+        
+        .animate-float-up {
+            animation: float-up 2s ease-out infinite;
+        }
+        
+        .animate-electric-pulse {
+            animation: electric-pulse 0.5s ease-in-out infinite;
+        }
+        
+        .animate-rainbow-border {
+            animation: rainbow-border 2s linear infinite;
+            border-width: 3px;
+        }
+        
+        .gacha-container {
+            perspective: 1000px;
+        }
+        
+        .sparkle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: white;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        
+        @keyframes sparkle-burst {
+            0% {
+                transform: translate(0, 0) scale(0);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--tx), var(--ty)) scale(1);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function App() {
+            // 基本的なステート
+            const [count, setCount] = useState(1);
+            const [results, setResults] = useState([]);
+            const [animationResults, setAnimationResults] = useState([]);
+            const [isLoading, setIsLoading] = useState(false);
+            const [showResult, setShowResult] = useState(false);
+            const [stats, setStats] = useState({
+                total: 0,
+                ssr: 0,
+                sr: 0,
+                r: 0,
+                n2: 0,
+                n: 0,
+                l: 0,
+            });
+
+            // ガチャアイテムの設定（ポイントを表示）
+            const items = [
+                {
+                    rarity: 'SSR',
+                    name: 'A$10000',
+                    points: 10000,
+                    rate: 1,
+                    color: 'text-yellow-400',
+                    bgColor: 'bg-gradient-to-br from-yellow-900/40 via-yellow-800/30 to-yellow-900/40 border-yellow-500/50',
+                    glowColor: 'shadow-[0_0_30px_rgba(250,204,21,0.5)]',
+                    particleColor: 'bg-yellow-400',
+                },
+                {
+                    rarity: 'SR',
+                    name: '5000',
+                    points: 5000,
+                    rate: 2,
+                    color: 'text-purple-400',
+                    bgColor: 'bg-gradient-to-br from-purple-900/40 via-purple-800/30 to-purple-900/40 border-purple-500/50',
+                    glowColor: 'shadow-[0_0_25px_rgba(168,85,247,0.5)]',
+                    particleColor: 'bg-purple-400',
+                },
+                {
+                    rarity: 'R',
+                    name: '2500',
+                    points: 2500,
+                    rate: 8,
+                    color: 'text-blue-400',
+                    bgColor: 'bg-gradient-to-br from-blue-900/40 via-blue-800/30 to-blue-900/40 border-blue-500/50',
+                    glowColor: 'shadow-[0_0_20px_rgba(59,130,246,0.5)]',
+                    particleColor: 'bg-blue-400',
+                },
+                {
+                    rarity: 'N2',
+                    name: '2000',
+                    points: 2000,
+                    rate: 11,
+                    color: 'text-emerald-400',
+                    bgColor: 'bg-gradient-to-br from-emerald-900/40 via-emerald-800/30 to-emerald-900/40 border-emerald-500/50',
+                    glowColor: 'shadow-[0_0_15px_rgba(52,211,153,0.4)]',
+                    particleColor: 'bg-emerald-400',
+                },
+                {
+                    rarity: 'N',
+                    name: '1000',
+                    points: 1000,
+                    rate: 28,
+                    color: 'text-gray-400',
+                    bgColor: 'bg-gradient-to-br from-gray-800/40 via-gray-700/30 to-gray-800/40 border-gray-600/50',
+                    glowColor: '',
+                    particleColor: 'bg-gray-400',
+                },
+                {
+                    rarity: 'L',
+                    name: '0',
+                    points: 0,
+                    rate: 50,
+                    color: 'text-red-500',
+                    bgColor: 'bg-gradient-to-br from-red-900/40 via-red-800/30 to-red-900/40 border-red-600/50',
+                    glowColor: '',
+                    particleColor: 'bg-red-500',
+                },
+            ];
+
+            // 各レアリティに対応する星のマッピング
+            const starMapping = {
+                SSR: '★★★★★',
+                SR: '★★★★',
+                R: '★★★',
+                N2: '★★',
+                N: '★',
+                L: '☆',
+            };
+
+            // 単発ガチャを引く関数
+            const drawSingle = () => {
+                const random = Math.random() * 100;
+                let sum = 0;
+                for (const item of items) {
+                    sum += item.rate;
+                    if (random < sum) {
+                        return item;
+                    }
+                }
+                return items[items.length - 1];
+            };
+
+            // 指定回数ガチャを引く関数（4秒の演出付き）
+            const drawGacha = () => {
+                setIsLoading(true);
+                setShowResult(false);
+                // 初期アニメーション結果を設定
+                setAnimationResults(Array.from({ length: count }, () => drawSingle()));
+
+                // 100msごとにアニメーション結果を更新（演出）
+                const intervalId = setInterval(() => {
+                    setAnimationResults(Array.from({ length: count }, () => drawSingle()));
+                }, 100);
+
+                // エフェクトサウンドを疑似的に表現（視覚的フィードバック）
+                document.body.style.animation = 'shake 0.1s ease-in-out 40';
+
+                // 4秒後に最終結果を決定
+                setTimeout(() => {
+                    clearInterval(intervalId);
+                    document.body.style.animation = '';
+                    try {
+                        const newResults = [];
+                        for (let i = 0; i < count; i++) {
+                            newResults.push(drawSingle());
+                        }
+                        // 統計情報の更新
+                        const newStats = {
+                            total: stats.total + parseInt(count),
+                            ssr: stats.ssr + newResults.filter(r => r.rarity === 'SSR').length,
+                            sr: stats.sr + newResults.filter(r => r.rarity === 'SR').length,
+                            r: stats.r + newResults.filter(r => r.rarity === 'R').length,
+                            n2: stats.n2 + newResults.filter(r => r.rarity === 'N2').length,
+                            n: stats.n + newResults.filter(r => r.rarity === 'N').length,
+                            l: stats.l + newResults.filter(r => r.rarity === 'L').length,
+                        };
+                        setResults(newResults);
+                        setStats(newStats);
+                        // 最終結果をアニメーション結果にも反映
+                        setAnimationResults(newResults);
+                        setShowResult(true);
+                    } catch (error) {
+                        console.error('ガチャ処理エラー:', error);
+                    } finally {
+                        setIsLoading(false);
+                    }
+                }, 4000);
+            };
+
+            // リセット機能
+            const resetStats = () => {
+                setResults([]);
+                setAnimationResults([]);
+                setStats({ total: 0, ssr: 0, sr: 0, r: 0, n2: 0, n: 0, l: 0 });
+                setShowResult(false);
+            };
+
+            // 0での割り算を防ぐヘルパー関数
+            const safePercent = (value, total) => {
+                if (total === 0) return 0;
+                return (value / total) * 100;
+            };
+
+            // カウントの増減関数
+            const incrementCount = () => setCount(prev => Math.min(100, prev + 1));
+            const decrementCount = () => setCount(prev => Math.max(1, prev - 1));
+            const handleCountChange = e => {
+                const value = parseInt(e.target.value) || 1;
+                setCount(Math.min(100, Math.max(1, value)));
+            };
+
+            // 合計獲得ポイントを計算
+            const totalPoints = results.reduce((sum, item) => sum + item.points, 0);
+
+            // 表示する結果（演出中はanimationResults、終了後はresults）
+            const displayResults = isLoading ? animationResults : results;
+
+            return (
+                <div className='min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 text-white p-4'>
+                    {/* 背景のパーティクル効果 */}
+                    <div className='fixed inset-0 overflow-hidden pointer-events-none'>
+                        {[...Array(20)].map((_, i) => (
+                            <div
+                                key={i}
+                                className='absolute animate-pulse'
+                                style={{
+                                    left: `${Math.random() * 100}%`,
+                                    top: `${Math.random() * 100}%`,
+                                    animationDelay: `${Math.random() * 5}s`,
+                                    animationDuration: `${3 + Math.random() * 4}s`,
+                                }}
+                            >
+                                <div className='w-1 h-1 bg-purple-500/30 rounded-full blur-sm'></div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className='max-w-md mx-auto relative z-10'>
+                        <div className='text-center mb-8'>
+                            <h1 className='text-4xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent animate-gradient'>
+                                Arkadia ガチャ α版 🂡
+                            </h1>
+                            <p className='text-gray-400 mt-2'>ダークモード・エディション</p>
+                        </div>
+
+                        <div className='backdrop-blur-md bg-gray-800/50 p-6 rounded-2xl shadow-2xl border border-gray-700/50 mb-6'>
+                            <div className='flex items-center justify-between mb-6'>
+                                <label className='block text-gray-300 font-medium'>回数</label>
+                                <div className='flex items-center'>
+                                    <button
+                                        onClick={decrementCount}
+                                        className='w-10 h-10 flex items-center justify-center bg-gray-700/50 rounded-l-lg hover:bg-gray-600/50 transition-all border border-gray-600/50'
+                                    >
+                                        -
+                                    </button>
+                                    <input
+                                        type='number'
+                                        min='1'
+                                        max='100'
+                                        value={count}
+                                        onChange={handleCountChange}
+                                        className='w-20 h-10 text-center bg-gray-800/50 border-y border-gray-600/50 text-white'
+                                    />
+                                    <button
+                                        onClick={incrementCount}
+                                        className='w-10 h-10 flex items-center justify-center bg-gray-700/50 rounded-r-lg hover:bg-gray-600/50 transition-all border border-gray-600/50'
+                                    >
+                                        +
+                                    </button>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={drawGacha}
+                                disabled={isLoading}
+                                className='w-full p-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl shadow-lg hover:from-purple-700 hover:to-pink-700 transition-all transform hover:scale-105 disabled:transform-none disabled:opacity-70 relative overflow-hidden'
+                            >
+                                {isLoading && (
+                                    <div className='absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer'></div>
+                                )}
+                                {isLoading ? (
+                                    <span className='flex items-center justify-center relative z-10'>
+                                        <svg
+                                            className='animate-spin -ml-1 mr-3 h-5 w-5 text-white'
+                                            xmlns='http://www.w3.org/2000/svg'
+                                            fill='none'
+                                            viewBox='0 0 24 24'
+                                        >
+                                            <circle
+                                                className='opacity-25'
+                                                cx='12'
+                                                cy='12'
+                                                r='10'
+                                                stroke='currentColor'
+                                                strokeWidth='4'
+                                            ></circle>
+                                            <path
+                                                className='opacity-75'
+                                                fill='currentColor'
+                                                d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'
+                                            ></path>
+                                        </svg>
+                                        <span className='animate-pulse text-lg'>🎰 ガチャ回転中...🎰</span>
+                                    </span>
+                                ) : (
+                                    <span className='flex items-center justify-center'>
+                                        <span className='mr-2'>🎰</span> ガチャを回す
+                                    </span>
+                                )}
+                            </button>
+
+                            <button
+                                onClick={resetStats}
+                                className='w-full mt-3 p-3 bg-gray-700/50 border border-gray-600/50 text-gray-300 rounded-xl hover:bg-gray-600/50 transition-all'
+                            >
+                                リセット
+                            </button>
+                        </div>
+
+                        {/* レアリティとポイントの表示 */}
+                        <div className='backdrop-blur-md bg-gray-800/50 rounded-2xl shadow-2xl border border-gray-700/50 mb-6 overflow-hidden'>
+                            <div className='bg-gray-900/50 px-4 py-3 border-b border-gray-700/50'>
+                                <h2 className='text-sm font-medium text-gray-300'>
+                                    レアリティとポイント
+                                </h2>
+                            </div>
+                            <div className='grid grid-cols-3 md:grid-cols-6 divide-x divide-gray-700/50'>
+                                {items.map(item => (
+                                    <div key={item.rarity} className='p-4 text-center hover:bg-gray-700/30 transition-all'>
+                                        <div className={`text-lg font-bold ${item.color}`}>{item.rarity}</div>
+                                        <div className='text-sm text-gray-400'>{item.points}pt</div>
+                                        <div className='text-xs mt-1 text-gray-500'>{item.rate}%</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {displayResults.length > 0 && (
+                            <div className='space-y-6'>
+                                {/* 合計獲得ポイントの表示（最終結果のみ） */}
+                                {showResult && (
+                                    <div className='animate-bounce-in backdrop-blur-md bg-gradient-to-r from-purple-900/50 to-pink-900/50 rounded-2xl shadow-2xl border border-purple-700/50 overflow-hidden'>
+                                        <div className='p-6 text-center'>
+                                            <h2 className='text-3xl font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent'>
+                                                {totalPoints.toLocaleString()} ポイント獲得！
+                                            </h2>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* ガチャ結果の表示 */}
+                                <div className='backdrop-blur-md bg-gray-800/50 rounded-2xl shadow-2xl border border-gray-700/50 overflow-hidden'>
+                                    <div className='bg-gray-900/50 px-4 py-3 border-b border-gray-700/50 flex justify-between items-center'>
+                                        <h2 className='text-sm font-medium text-gray-300'>
+                                            {isLoading ? '🎲 回転中...' : '🎉 結果'}
+                                        </h2>
+                                        <span className='text-xs text-gray-400'>{count}回</span>
+                                    </div>
+                                    <div className='p-4 max-h-80 overflow-y-auto gacha-container'>
+                                        {isLoading && (
+                                            <div className='absolute inset-0 flex items-center justify-center z-10 pointer-events-none'>
+                                                <div className='text-6xl animate-spin-3d'>🎰</div>
+                                                <div className='absolute'>
+                                                    {[...Array(12)].map((_, i) => (
+                                                        <div
+                                                            key={i}
+                                                            className='sparkle animate-float-up'
+                                                            style={{
+                                                                '--tx': `${Math.cos(i * 30 * Math.PI / 180) * 100}px`,
+                                                                '--ty': `${Math.sin(i * 30 * Math.PI / 180) * 100}px`,
+                                                                animation: `sparkle-burst 1s ease-out infinite`,
+                                                                animationDelay: `${i * 0.1}s`
+                                                            }}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                        <div className='grid gap-2'>
+                                            {displayResults.map((item, index) => (
+                                                <div
+                                                    key={index}
+                                                    className={`p-3 rounded-xl border backdrop-blur-sm transition-all transform ${
+                                                        isLoading ? 'animate-spin-3d animate-rainbow-border' : 'animate-slide-in'
+                                                    } ${item.bgColor} ${item.glowColor} ${
+                                                        isLoading ? 'animate-electric-pulse' : ''
+                                                    }`}
+                                                    style={{
+                                                        animationDelay: isLoading ? `${index * 0.1}s` : `${index * 0.05}s`,
+                                                        animationDuration: isLoading ? `${0.8 + Math.random() * 0.4}s` : '0.5s'
+                                                    }}
+                                                >
+                                                    <div className='flex items-center justify-between relative'>
+                                                        <div className={`font-bold ${item.color} ${isLoading ? 'blur-sm' : ''}`}>
+                                                            {item.rarity} {starMapping[item.rarity]}
+                                                        </div>
+                                                        <div className={`text-lg font-bold ${item.color} ${isLoading ? 'blur-sm' : ''}`}>
+                                                            +{item.points}
+                                                        </div>
+                                                        {isLoading && (
+                                                            <div className='absolute inset-0 flex items-center justify-center'>
+                                                                <div className='text-2xl animate-pulse'>❓</div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {stats.total > 0 && (
+                            <div className='mt-6 backdrop-blur-md bg-gray-800/50 rounded-2xl shadow-2xl border border-gray-700/50 overflow-hidden'>
+                                <div className='bg-gray-900/50 px-4 py-3 border-b border-gray-700/50'>
+                                    <h2 className='text-sm font-medium text-gray-300'>統計情報</h2>
+                                </div>
+                                <div className='p-6 space-y-4'>
+                                    <div className='text-center mb-4'>
+                                        <div className='text-sm text-gray-400'>合計ガチャ回数</div>
+                                        <div className='text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent'>
+                                            {stats.total}回
+                                        </div>
+                                    </div>
+
+                                    {[
+                                        { key: 'ssr', label: 'SSR', color: 'yellow' },
+                                        { key: 'sr', label: 'SR', color: 'purple' },
+                                        { key: 'r', label: 'R', color: 'blue' },
+                                        { key: 'n2', label: 'N2', color: 'emerald' },
+                                        { key: 'n', label: 'N', color: 'gray' },
+                                        { key: 'l', label: 'L', color: 'red' },
+                                    ].map(({ key, label, color }) => (
+                                        <div key={key} className='flex items-center space-x-3'>
+                                            <div className={`w-16 text-${color}-400 font-bold`}>{label}</div>
+                                            <div className='flex-1 h-4 bg-gray-700/50 rounded-full overflow-hidden relative'>
+                                                <div
+                                                    className={`h-full bg-gradient-to-r from-${color}-600 to-${color}-400 rounded-full transition-all duration-1000 ease-out`}
+                                                    style={{ width: `${safePercent(stats[key], stats.total)}%` }}
+                                                >
+                                                    <div className='absolute inset-0 bg-white/20 animate-shimmer'></div>
+                                                </div>
+                                            </div>
+                                            <div className='w-28 text-right text-sm text-gray-300'>
+                                                {stats[key]}個 ({safePercent(stats[key], stats.total).toFixed(1)}%)
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
