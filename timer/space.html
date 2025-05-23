@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>宇宙タイマー</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
+        }
+
+        /* 宇宙の背景 */
+        .universe {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+        }
+
+        /* 星々 */
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 3s infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        /* 流れ星 */
+        .shooting-star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: white;
+            box-shadow: 0 0 10px 2px rgba(255, 255, 255, 0.8);
+            animation: shoot 3s linear infinite;
+        }
+
+        .shooting-star::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 300px;
+            height: 1px;
+            background: linear-gradient(90deg, white, transparent);
+            transform: translateX(-100%);
+        }
+
+        @keyframes shoot {
+            0% {
+                transform: translate(0, 0) rotate(-45deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(300px, 300px) rotate(-45deg);
+                opacity: 0;
+            }
+        }
+
+        /* 惑星 */
+        .planet {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #ff6b6b, #4ecdc4);
+            box-shadow: 0 0 50px rgba(78, 205, 196, 0.5);
+            top: 10%;
+            right: 10%;
+            animation: float 20s infinite ease-in-out;
+        }
+
+        .planet::after {
+            content: '';
+            position: absolute;
+            width: 150%;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            top: 50%;
+            left: -25%;
+            transform: rotateZ(-15deg);
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-30px) rotate(10deg); }
+        }
+
+        /* 星雲 */
+        .nebula {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(138, 43, 226, 0.3) 0%, transparent 70%);
+            filter: blur(40px);
+            top: -200px;
+            left: -200px;
+            animation: pulse 10s infinite ease-in-out;
+        }
+
+        .nebula2 {
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(30, 144, 255, 0.3) 0%, transparent 70%);
+            filter: blur(50px);
+            bottom: -200px;
+            right: -200px;
+            animation: pulse 12s infinite ease-in-out reverse;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.2); opacity: 0.8; }
+        }
+
+        .container {
+            position: relative;
+            text-align: center;
+            z-index: 10;
+        }
+
+        /* タイマー表示 */
+        .timer-display {
+            font-size: 8rem;
+            font-weight: 100;
+            color: rgba(255, 255, 255, 0.95);
+            letter-spacing: 0.1em;
+            text-shadow: 0 0 30px rgba(255, 255, 255, 0.8),
+                         0 0 60px rgba(100, 200, 255, 0.8),
+                         0 0 90px rgba(100, 200, 255, 0.6);
+            margin-bottom: 3rem;
+            animation: glow 3s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { 
+                text-shadow: 0 0 30px rgba(255, 255, 255, 0.8),
+                             0 0 60px rgba(100, 200, 255, 0.8),
+                             0 0 90px rgba(100, 200, 255, 0.6);
+            }
+            to { 
+                text-shadow: 0 0 40px rgba(255, 255, 255, 1),
+                             0 0 80px rgba(100, 200, 255, 1),
+                             0 0 120px rgba(100, 200, 255, 0.8);
+            }
+        }
+
+        /* オービット（軌道） */
+        .orbit-container {
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+
+        .orbit {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            animation: rotate 30s linear infinite;
+        }
+
+        .orbit-dot {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #fff;
+            border-radius: 50%;
+            top: -4px;
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* コントロール */
+        .controls {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            margin-bottom: 3rem;
+        }
+
+        button {
+            padding: 1rem 2.5rem;
+            font-size: 1.1rem;
+            font-weight: 300;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50px;
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: radial-gradient(circle, rgba(100, 200, 255, 0.4), transparent);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(100, 200, 255, 0.8);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(100, 200, 255, 0.3);
+        }
+
+        button:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        /* 入力セクション */
+        .input-section {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        input[type="number"] {
+            width: 80px;
+            padding: 0.8rem;
+            font-size: 1.2rem;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            color: white;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(100, 200, 255, 0.8);
+            box-shadow: 0 0 20px rgba(100, 200, 255, 0.3);
+        }
+
+        label {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1rem;
+            font-weight: 300;
+        }
+
+        /* プログレスリング */
+        .progress-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 400px;
+            height: 400px;
+            pointer-events: none;
+        }
+
+        .progress-ring circle {
+            fill: none;
+            stroke: rgba(100, 200, 255, 0.2);
+            stroke-width: 2;
+        }
+
+        .progress-ring .progress {
+            fill: none;
+            stroke: url(#gradient);
+            stroke-width: 4;
+            stroke-linecap: round;
+            transform: rotate(-90deg);
+            transform-origin: center;
+            transition: stroke-dashoffset 0.1s linear;
+            filter: drop-shadow(0 0 10px rgba(100, 200, 255, 0.8));
+        }
+
+        @media (max-width: 768px) {
+            .timer-display {
+                font-size: 5rem;
+            }
+            
+            .progress-ring,
+            .orbit-container {
+                width: 300px;
+                height: 300px;
+            }
+            
+            .planet {
+                width: 80px;
+                height: 80px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="universe">
+        <div class="nebula"></div>
+        <div class="nebula2"></div>
+        <div class="stars" id="stars"></div>
+        <div class="planet"></div>
+    </div>
+    
+    <div class="container">
+        <div class="orbit-container">
+            <div class="orbit" style="animation-duration: 20s;">
+                <div class="orbit-dot"></div>
+            </div>
+            <div class="orbit" style="width: 70%; height: 70%; top: 15%; left: 15%; animation-duration: 15s; animation-direction: reverse;">
+                <div class="orbit-dot" style="width: 6px; height: 6px;"></div>
+            </div>
+        </div>
+
+        <svg class="progress-ring">
+            <defs>
+                <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:1" />
+                    <stop offset="50%" style="stop-color:#0099ff;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#0066ff;stop-opacity:1" />
+                </linearGradient>
+            </defs>
+            <circle cx="200" cy="200" r="195"></circle>
+            <circle class="progress" cx="200" cy="200" r="195" 
+                    stroke-dasharray="1225" 
+                    stroke-dashoffset="1225"></circle>
+        </svg>
+        
+        <div class="timer-display" id="display">00:00:00</div>
+        
+        <div class="input-section">
+            <div>
+                <label for="hours">時間</label>
+                <input type="number" id="hours" min="0" max="23" value="0">
+            </div>
+            <div>
+                <label for="minutes">分</label>
+                <input type="number" id="minutes" min="0" max="59" value="5">
+            </div>
+            <div>
+                <label for="seconds">秒</label>
+                <input type="number" id="seconds" min="0" max="59" value="0">
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="startBtn" onclick="startTimer()">スタート</button>
+            <button id="pauseBtn" onclick="pauseTimer()" style="display: none;">一時停止</button>
+            <button id="resetBtn" onclick="resetTimer()">リセット</button>
+        </div>
+    </div>
+
+    <script>
+        let timer = null;
+        let totalSeconds = 0;
+        let remainingSeconds = 0;
+        let isPaused = false;
+        const progressCircle = document.querySelector('.progress');
+        const circumference = 2 * Math.PI * 195;
+
+        // 星を生成
+        function createStars() {
+            const starsContainer = document.getElementById('stars');
+            
+            // 小さな星
+            for (let i = 0; i < 200; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.width = Math.random() * 3 + 'px';
+                star.style.height = star.style.width;
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.animationDelay = Math.random() * 3 + 's';
+                starsContainer.appendChild(star);
+            }
+            
+            // 流れ星
+            setInterval(() => {
+                const shootingStar = document.createElement('div');
+                shootingStar.className = 'shooting-star';
+                shootingStar.style.left = Math.random() * 100 + '%';
+                shootingStar.style.top = Math.random() * 50 + '%';
+                document.querySelector('.universe').appendChild(shootingStar);
+                
+                setTimeout(() => {
+                    shootingStar.remove();
+                }, 3000);
+            }, 5000);
+        }
+
+        function updateDisplay() {
+            const hours = Math.floor(remainingSeconds / 3600);
+            const minutes = Math.floor((remainingSeconds % 3600) / 60);
+            const seconds = remainingSeconds % 60;
+            
+            document.getElementById('display').textContent = 
+                `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            // プログレスリングを更新
+            const progress = (totalSeconds - remainingSeconds) / totalSeconds;
+            const offset = circumference - (progress * circumference);
+            progressCircle.style.strokeDashoffset = offset;
+        }
+
+        function startTimer() {
+            if (!isPaused) {
+                const hours = parseInt(document.getElementById('hours').value) || 0;
+                const minutes = parseInt(document.getElementById('minutes').value) || 0;
+                const seconds = parseInt(document.getElementById('seconds').value) || 0;
+                
+                totalSeconds = hours * 3600 + minutes * 60 + seconds;
+                remainingSeconds = totalSeconds;
+                
+                if (totalSeconds === 0) return;
+            }
+            
+            isPaused = false;
+            document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('pauseBtn').style.display = 'inline-block';
+            
+            timer = setInterval(() => {
+                if (remainingSeconds > 0) {
+                    remainingSeconds--;
+                    updateDisplay();
+                } else {
+                    clearInterval(timer);
+                    // 宇宙的な完了エフェクト
+                    document.querySelector('.timer-display').style.animation = 'glow 0.5s ease-in-out 3';
+                    alert('タイマーが終了しました！');
+                    resetTimer();
+                }
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            isPaused = true;
+            clearInterval(timer);
+            document.getElementById('startBtn').style.display = 'inline-block';
+            document.getElementById('pauseBtn').style.display = 'none';
+        }
+
+        function resetTimer() {
+            clearInterval(timer);
+            remainingSeconds = 0;
+            totalSeconds = 0;
+            isPaused = false;
+            updateDisplay();
+            progressCircle.style.strokeDashoffset = circumference;
+            document.getElementById('startBtn').style.display = 'inline-block';
+            document.getElementById('pauseBtn').style.display = 'none';
+            document.querySelector('.timer-display').style.animation = 'glow 3s ease-in-out infinite alternate';
+        }
+
+        // 初期化
+        createStars();
+        progressCircle.style.strokeDasharray = circumference;
+        progressCircle.style.strokeDashoffset = circumference;
+    </script>
+</body>
+</html>
