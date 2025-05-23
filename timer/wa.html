@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>宇宙と和のタイマー</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+            font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+            overflow: hidden;
+        }
+
+        /* 宇宙の背景 */
+        .universe {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at bottom, #1a1a2e 0%, #0a0a0a 100%);
+        }
+
+        /* 和紙のテクスチャオーバーレイ */
+        .washi-overlay {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                repeating-linear-gradient(
+                    90deg,
+                    rgba(255, 255, 255, 0.03) 0px,
+                    transparent 1px,
+                    transparent 2px,
+                    rgba(255, 255, 255, 0.03) 3px
+                ),
+                repeating-linear-gradient(
+                    0deg,
+                    rgba(255, 255, 255, 0.02) 0px,
+                    transparent 1px,
+                    transparent 2px,
+                    rgba(255, 255, 255, 0.02) 3px
+                );
+            mix-blend-mode: overlay;
+        }
+
+        /* 星々 */
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 3s infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        /* 桜の花びら */
+        .sakura-petal {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: radial-gradient(circle, #ffb7c5 0%, #ff69b4 100%);
+            border-radius: 0 100% 0 100%;
+            animation: fall 10s linear infinite;
+            opacity: 0.8;
+        }
+
+        @keyframes fall {
+            0% {
+                transform: translateY(-100vh) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.8;
+            }
+            90% {
+                opacity: 0.8;
+            }
+            100% {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        /* 月 */
+        .moon {
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #f4f4f4, #d0d0d0);
+            box-shadow: 0 0 50px rgba(255, 255, 255, 0.5),
+                        inset -20px -20px 30px rgba(0, 0, 0, 0.3);
+            top: 10%;
+            right: 10%;
+            animation: float 20s infinite ease-in-out;
+        }
+
+        .moon::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: radial-gradient(circle at 50% 50%, transparent 40%, rgba(0, 0, 0, 0.1) 100%);
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-30px) rotate(10deg); }
+        }
+
+        /* 墨のような星雲 */
+        .sumi-nebula {
+            position: absolute;
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, rgba(75, 0, 130, 0.3) 0%, transparent 60%);
+            filter: blur(60px);
+            top: -400px;
+            left: -400px;
+            animation: pulse 15s infinite ease-in-out;
+        }
+
+        .sumi-nebula2 {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(220, 20, 60, 0.2) 0%, transparent 70%);
+            filter: blur(80px);
+            bottom: -300px;
+            right: -300px;
+            animation: pulse 18s infinite ease-in-out reverse;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.3; }
+            50% { transform: scale(1.3) rotate(180deg); opacity: 0.6; }
+        }
+
+        /* 円相（えんそう） */
+        .enso {
+            position: absolute;
+            width: 450px;
+            height: 450px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+
+        .enso-circle {
+            width: 100%;
+            height: 100%;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            position: absolute;
+            background: radial-gradient(circle, transparent 70%, rgba(255, 255, 255, 0.05) 100%);
+        }
+
+        .enso-brush {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            animation: draw-enso 30s linear infinite;
+        }
+
+        .enso-brush::before {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.8), transparent);
+            border-radius: 50%;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.6);
+        }
+
+        @keyframes draw-enso {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .container {
+            position: relative;
+            text-align: center;
+            z-index: 10;
+        }
+
+        /* タイマー表示 - 和風フォント */
+        .timer-display {
+            font-size: 7rem;
+            font-weight: 300;
+            color: rgba(255, 255, 255, 0.95);
+            letter-spacing: 0.2em;
+            text-shadow: 0 0 30px rgba(255, 255, 255, 0.8),
+                         0 0 60px rgba(255, 182, 193, 0.6),
+                         0 0 90px rgba(255, 182, 193, 0.4);
+            margin-bottom: 3rem;
+            animation: glow 4s ease-in-out infinite alternate;
+            font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+        }
+
+        @keyframes glow {
+            from { 
+                text-shadow: 0 0 30px rgba(255, 255, 255, 0.8),
+                             0 0 60px rgba(255, 182, 193, 0.6),
+                             0 0 90px rgba(255, 182, 193, 0.4);
+            }
+            to { 
+                text-shadow: 0 0 40px rgba(255, 255, 255, 1),
+                             0 0 80px rgba(255, 182, 193, 0.8),
+                             0 0 120px rgba(255, 182, 193, 0.6);
+            }
+        }
+
+        /* 竹の装飾 */
+        .bamboo {
+            position: absolute;
+            width: 30px;
+            height: 200px;
+            background: linear-gradient(to bottom, #2d4a2b, #1a2e19);
+            bottom: 0;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .bamboo-left {
+            left: 5%;
+            transform: rotate(-5deg);
+        }
+
+        .bamboo-right {
+            right: 5%;
+            transform: rotate(5deg);
+        }
+
+        .bamboo::before,
+        .bamboo::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 3px;
+            background: #0d1a0d;
+            left: 0;
+        }
+
+        .bamboo::before {
+            top: 30%;
+        }
+
+        .bamboo::after {
+            top: 60%;
+        }
+
+        /* コントロール - 和風ボタン */
+        .controls {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            margin-bottom: 3rem;
+        }
+
+        button {
+            padding: 1rem 2.5rem;
+            font-size: 1.1rem;
+            font-weight: 400;
+            border: 2px solid rgba(255, 182, 193, 0.5);
+            border-radius: 30px;
+            background: rgba(0, 0, 0, 0.3);
+            color: white;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            font-family: 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
+        }
+
+        button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: radial-gradient(circle, rgba(255, 182, 193, 0.4), transparent);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        button:hover {
+            background: rgba(255, 182, 193, 0.1);
+            border-color: rgba(255, 182, 193, 0.8);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(255, 182, 193, 0.3);
+        }
+
+        button:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        /* 入力セクション */
+        .input-section {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        input[type="number"] {
+            width: 80px;
+            padding: 0.8rem;
+            font-size: 1.2rem;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 182, 193, 0.3);
+            border-radius: 15px;
+            color: white;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            font-family: 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            background: rgba(255, 182, 193, 0.1);
+            border-color: rgba(255, 182, 193, 0.6);
+            box-shadow: 0 0 20px rgba(255, 182, 193, 0.3);
+        }
+
+        label {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+        }
+
+        /* プログレスリング - 墨絵風 */
+        .progress-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 400px;
+            height: 400px;
+            pointer-events: none;
+        }
+
+        .progress-ring circle {
+            fill: none;
+            stroke: rgba(255, 182, 193, 0.2);
+            stroke-width: 2;
+        }
+
+        .progress-ring .progress {
+            fill: none;
+            stroke: url(#gradient);
+            stroke-width: 4;
+            stroke-linecap: round;
+            transform: rotate(-90deg);
+            transform-origin: center;
+            transition: stroke-dashoffset 0.1s linear;
+            filter: drop-shadow(0 0 10px rgba(255, 182, 193, 0.6));
+        }
+
+        /* 漢字の装飾 */
+        .kanji-decoration {
+            position: absolute;
+            font-size: 2rem;
+            color: rgba(255, 255, 255, 0.1);
+            font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+            font-weight: bold;
+        }
+
+        .kanji-top {
+            top: 5%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .kanji-bottom {
+            bottom: 5%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        @media (max-width: 768px) {
+            .timer-display {
+                font-size: 4rem;
+            }
+            
+            .progress-ring,
+            .enso {
+                width: 300px;
+                height: 300px;
+            }
+            
+            .moon {
+                width: 100px;
+                height: 100px;
+            }
+
+            .bamboo {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="universe">
+        <div class="washi-overlay"></div>
+        <div class="sumi-nebula"></div>
+        <div class="sumi-nebula2"></div>
+        <div class="stars" id="stars"></div>
+        <div class="moon"></div>
+        <div class="bamboo bamboo-left"></div>
+        <div class="bamboo bamboo-right"></div>
+        <div class="kanji-decoration kanji-top">時</div>
+        <div class="kanji-decoration kanji-bottom">刻</div>
+    </div>
+    
+    <div class="container">
+        <div class="enso">
+            <div class="enso-circle"></div>
+            <div class="enso-brush"></div>
+        </div>
+
+        <svg class="progress-ring">
+            <defs>
+                <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#ffb7c5;stop-opacity:1" />
+                    <stop offset="50%" style="stop-color:#ff69b4;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#ff1493;stop-opacity:1" />
+                </linearGradient>
+            </defs>
+            <circle cx="200" cy="200" r="195"></circle>
+            <circle class="progress" cx="200" cy="200" r="195" 
+                    stroke-dasharray="1225" 
+                    stroke-dashoffset="1225"></circle>
+        </svg>
+        
+        <div class="timer-display" id="display">〇〇:〇〇:〇〇</div>
+        
+        <div class="input-section">
+            <div class="input-group">
+                <label for="hours">時</label>
+                <input type="number" id="hours" min="0" max="23" value="0">
+            </div>
+            <div class="input-group">
+                <label for="minutes">分</label>
+                <input type="number" id="minutes" min="0" max="59" value="5">
+            </div>
+            <div class="input-group">
+                <label for="seconds">秒</label>
+                <input type="number" id="seconds" min="0" max="59" value="0">
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="startBtn" onclick="startTimer()">開始</button>
+            <button id="pauseBtn" onclick="pauseTimer()" style="display: none;">一時停止</button>
+            <button id="resetBtn" onclick="resetTimer()">初期化</button>
+        </div>
+    </div>
+
+    <script>
+        let timer = null;
+        let totalSeconds = 0;
+        let remainingSeconds = 0;
+        let isPaused = false;
+        const progressCircle = document.querySelector('.progress');
+        const circumference = 2 * Math.PI * 195;
+
+        // 星を生成
+        function createStars() {
+            const starsContainer = document.getElementById('stars');
+            
+            // 小さな星
+            for (let i = 0; i < 150; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.width = Math.random() * 3 + 'px';
+                star.style.height = star.style.width;
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.animationDelay = Math.random() * 3 + 's';
+                starsContainer.appendChild(star);
+            }
+            
+            // 桜の花びら
+            setInterval(() => {
+                const petal = document.createElement('div');
+                petal.className = 'sakura-petal';
+                petal.style.left = Math.random() * 100 + '%';
+                petal.style.animationDelay = Math.random() * 5 + 's';
+                petal.style.animationDuration = (10 + Math.random() * 10) + 's';
+                document.querySelector('.universe').appendChild(petal);
+                
+                setTimeout(() => {
+                    petal.remove();
+                }, 20000);
+            }, 3000);
+        }
+
+        // 全角数字に変換
+        function toZenkaku(num) {
+            const zenkakuNums = ['０', '１', '２', '３', '４', '５', '６', '７', '８', '９'];
+            return num.toString().split('').map(n => zenkakuNums[parseInt(n)]).join('');
+        }
+
+        function updateDisplay() {
+            const hours = Math.floor(remainingSeconds / 3600);
+            const minutes = Math.floor((remainingSeconds % 3600) / 60);
+            const seconds = remainingSeconds % 60;
+            
+            // 通常の数字表示（全角数字を使うとフォントの問題があるため）
+            document.getElementById('display').textContent = 
+                `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            // プログレスリングを更新
+            const progress = (totalSeconds - remainingSeconds) / totalSeconds;
+            const offset = circumference - (progress * circumference);
+            progressCircle.style.strokeDashoffset = offset;
+        }
+
+        function startTimer() {
+            if (!isPaused) {
+                const hours = parseInt(document.getElementById('hours').value) || 0;
+                const minutes = parseInt(document.getElementById('minutes').value) || 0;
+                const seconds = parseInt(document.getElementById('seconds').value) || 0;
+                
+                totalSeconds = hours * 3600 + minutes * 60 + seconds;
+                remainingSeconds = totalSeconds;
+                
+                if (totalSeconds === 0) return;
+            }
+            
+            isPaused = false;
+            document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('pauseBtn').style.display = 'inline-block';
+            
+            timer = setInterval(() => {
+                if (remainingSeconds > 0) {
+                    remainingSeconds--;
+                    updateDisplay();
+                } else {
+                    clearInterval(timer);
+                    // 和風の完了エフェクト
+                    document.querySelector('.timer-display').style.animation = 'glow 0.5s ease-in-out 3';
+                    alert('時間になりました');
+                    resetTimer();
+                }
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            isPaused = true;
+            clearInterval(timer);
+            document.getElementById('startBtn').style.display = 'inline-block';
+            document.getElementById('pauseBtn').style.display = 'none';
+        }
+
+        function resetTimer() {
+            clearInterval(timer);
+            remainingSeconds = 0;
+            totalSeconds = 0;
+            isPaused = false;
+            updateDisplay();
+            progressCircle.style.strokeDashoffset = circumference;
+            document.getElementById('startBtn').style.display = 'inline-block';
+            document.getElementById('pauseBtn').style.display = 'none';
+            document.querySelector('.timer-display').style.animation = 'glow 4s ease-in-out infinite alternate';
+        }
+
+        // 初期化
+        createStars();
+        progressCircle.style.strokeDasharray = circumference;
+        progressCircle.style.strokeDashoffset = circumference;
+        updateDisplay();
+    </script>
+</body>
+</html>
