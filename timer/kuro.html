@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>水墨画タイマー</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #fafafa;
+            font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* 和紙の質感 */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(0, 0, 0, 0.02) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(0, 0, 0, 0.02) 0%, transparent 50%),
+                radial-gradient(circle at 40% 20%, rgba(0, 0, 0, 0.01) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        /* 墨のにじみ背景 */
+        .ink-wash {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            opacity: 0.05;
+            filter: blur(100px);
+            background: radial-gradient(ellipse at center, #000 0%, transparent 70%);
+        }
+
+        /* 竹 - 水墨画風 */
+        .bamboo-group {
+            position: fixed;
+            bottom: 0;
+            left: 10%;
+            width: 80px;
+            height: 60%;
+            opacity: 0.2;
+        }
+
+        .bamboo {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+
+        .bamboo-stroke {
+            fill: none;
+            stroke: #000;
+            stroke-width: 40;
+            stroke-linecap: round;
+            opacity: 0.8;
+            filter: url(#brush);
+        }
+
+        .bamboo-node {
+            fill: #000;
+            opacity: 0.9;
+        }
+
+        .bamboo-leaf {
+            fill: #000;
+            opacity: 0.6;
+            filter: url(#brush);
+        }
+
+        /* 山水 - 遠山 */
+        .mountains {
+            position: fixed;
+            top: 15%;
+            width: 100%;
+            height: 200px;
+            opacity: 0.15;
+        }
+
+        .mountain-far {
+            fill: #000;
+            filter: blur(3px);
+        }
+
+        .mountain-near {
+            fill: #000;
+            filter: blur(1px);
+            opacity: 0.8;
+        }
+
+        /* 霧 */
+        .mist {
+            position: fixed;
+            width: 200%;
+            height: 100px;
+            background: linear-gradient(to bottom, transparent, rgba(250, 250, 250, 0.8), transparent);
+            animation: drift 30s linear infinite;
+        }
+
+        .mist-1 {
+            top: 30%;
+            opacity: 0.6;
+        }
+
+        .mist-2 {
+            top: 50%;
+            animation-delay: -15s;
+            opacity: 0.4;
+        }
+
+        @keyframes drift {
+            from { transform: translateX(-50%); }
+            to { transform: translateX(0); }
+        }
+
+        /* 円相 - 濃墨 */
+        .enso-container {
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .enso {
+            width: 100%;
+            height: 100%;
+        }
+
+        .enso-path {
+            fill: none;
+            stroke: #000;
+            stroke-width: 15;
+            stroke-linecap: round;
+            opacity: 0.9;
+            filter: url(#brush);
+            stroke-dasharray: 1570;
+            stroke-dashoffset: 0;
+        }
+
+        /* 飛白（かすれ）効果 */
+        .enso-texture {
+            fill: none;
+            stroke: #000;
+            stroke-width: 15;
+            stroke-linecap: round;
+            opacity: 0.2;
+            filter: url(#texture);
+            stroke-dasharray: 50 30 20 40 60 20;
+        }
+
+        /* メインコンテナ */
+        .container {
+            position: relative;
+            text-align: center;
+            z-index: 10;
+        }
+
+        /* タイマー表示 - 墨文字 */
+        .timer-display {
+            font-size: 4.5rem;
+            font-weight: 400;
+            color: #000;
+            letter-spacing: 0.5em;
+            margin-bottom: 3rem;
+            opacity: 0.9;
+            filter: url(#brush-light);
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 詩句 */
+        .poem {
+            position: absolute;
+            writing-mode: vertical-rl;
+            font-size: 1.2rem;
+            color: #000;
+            opacity: 0.4;
+            line-height: 2;
+            letter-spacing: 0.2em;
+        }
+
+        .poem-left {
+            left: 5%;
+            top: 20%;
+        }
+
+        .poem-right {
+            right: 5%;
+            top: 25%;
+        }
+
+        /* 落款 */
+        .seal {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            bottom: 10%;
+            right: 10%;
+        }
+
+        .seal-bg {
+            fill: #000;
+            opacity: 0.8;
+        }
+
+        .seal-text {
+            fill: #fafafa;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        /* 入力セクション */
+        .input-section {
+            display: flex;
+            gap: 3rem;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        input[type="number"] {
+            width: 60px;
+            padding: 0.5rem;
+            font-size: 1.1rem;
+            text-align: center;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid #000;
+            color: #000;
+            opacity: 0.8;
+            transition: all 0.3s ease;
+            font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            opacity: 1;
+            border-bottom-width: 3px;
+        }
+
+        label {
+            color: #000;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            opacity: 0.7;
+            font-weight: 500;
+        }
+
+        /* コントロール */
+        .controls {
+            display: flex;
+            gap: 3rem;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+
+        button {
+            padding: 0.8rem 2rem;
+            font-size: 1rem;
+            font-weight: 500;
+            border: 2px solid #000;
+            border-radius: 0;
+            background: transparent;
+            color: #000;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+            opacity: 0.8;
+        }
+
+        button::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: #000;
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+            transform-origin: right;
+        }
+
+        button:hover {
+            opacity: 1;
+        }
+
+        button:hover::after {
+            transform: scaleX(1);
+            transform-origin: left;
+        }
+
+        /* プログレス - 薄墨 */
+        .progress-container {
+            position: absolute;
+            width: 480px;
+            height: 480px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+
+        .progress-ring {
+            width: 100%;
+            height: 100%;
+        }
+
+        .progress-ring circle {
+            fill: none;
+            stroke: #000;
+            stroke-width: 2;
+            opacity: 0.1;
+        }
+
+        .progress-ring .progress {
+            fill: none;
+            stroke: #000;
+            stroke-width: 4;
+            stroke-linecap: round;
+            transform: rotate(-90deg);
+            transform-origin: center;
+            transition: stroke-dashoffset 0.1s linear;
+            opacity: 0.6;
+            filter: url(#brush-light);
+        }
+
+        /* 蘭 - 四君子 */
+        .orchid {
+            position: fixed;
+            bottom: 10%;
+            right: 15%;
+            width: 150px;
+            height: 200px;
+            opacity: 0.2;
+        }
+
+        .orchid-stem {
+            stroke: #000;
+            stroke-width: 3;
+            fill: none;
+            filter: url(#brush);
+        }
+
+        .orchid-leaf {
+            stroke: #000;
+            stroke-width: 4;
+            fill: none;
+            filter: url(#brush);
+            opacity: 0.8;
+        }
+
+        /* SVGフィルター */
+        .svg-filters {
+            position: absolute;
+            width: 0;
+            height: 0;
+        }
+
+        @media (max-width: 768px) {
+            .timer-display {
+                font-size: 3rem;
+                letter-spacing: 0.3em;
+            }
+            
+            .enso-container,
+            .progress-container {
+                width: 350px;
+                height: 350px;
+            }
+
+            .poem {
+                display: none;
+            }
+
+            .bamboo-group,
+            .orchid {
+                opacity: 0.1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- SVGフィルター定義 -->
+    <svg class="svg-filters">
+        <defs>
+            <filter id="brush">
+                <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="5" result="noise"/>
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="3"/>
+                <feGaussianBlur stdDeviation="0.5"/>
+            </filter>
+            <filter id="brush-light">
+                <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="3" result="noise"/>
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="1"/>
+            </filter>
+            <filter id="texture">
+                <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" result="noise"/>
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="8"/>
+            </filter>
+        </defs>
+    </svg>
+
+    <!-- 墨のにじみ -->
+    <div class="ink-wash"></div>
+
+    <!-- 山水 -->
+    <svg class="mountains" viewBox="0 0 1200 200">
+        <path class="mountain-far" d="M0 150 L200 50 L400 150 L600 80 L800 120 L1000 60 L1200 150 L1200 200 L0 200 Z"/>
+        <path class="mountain-near" d="M-100 180 L100 100 L300 160 L500 120 L700 170 L900 110 L1100 160 L1300 180 L1300 200 L-100 200 Z"/>
+    </svg>
+
+    <!-- 霧 -->
+    <div class="mist mist-1"></div>
+    <div class="mist mist-2"></div>
+
+    <!-- 竹 -->
+    <svg class="bamboo-group" viewBox="0 0 80 400">
+        <line class="bamboo-stroke" x1="40" y1="400" x2="38" y2="0"/>
+        <rect class="bamboo-node" x="30" y="100" width="20" height="3"/>
+        <rect class="bamboo-node" x="30" y="200" width="20" height="3"/>
+        <rect class="bamboo-node" x="30" y="300" width="20" height="3"/>
+        <path class="bamboo-leaf" d="M40 80 Q20 60 15 40 Q20 60 40 80 Q60 60 65 40 Q60 60 40 80"/>
+        <path class="bamboo-leaf" d="M38 150 Q18 130 13 110 Q18 130 38 150"/>
+    </svg>
+
+    <!-- 蘭 -->
+    <svg class="orchid" viewBox="0 0 150 200">
+        <path class="orchid-stem" d="M75 200 Q70 150 65 100 Q60 50 70 20"/>
+        <path class="orchid-leaf" d="M65 100 Q30 80 20 60"/>
+        <path class="orchid-leaf" d="M65 100 Q100 85 110 70"/>
+        <path class="orchid-leaf" d="M65 140 Q40 125 30 110"/>
+    </svg>
+
+    <!-- 詩句 -->
+    <div class="poem poem-left">静寂無声</div>
+    <div class="poem poem-right">時如流水</div>
+
+    <div class="container">
+        <!-- 円相 -->
+        <div class="enso-container">
+            <svg class="enso" viewBox="0 0 500 500">
+                <circle class="enso-path" cx="250" cy="250" r="250"/>
+                <circle class="enso-texture" cx="250" cy="250" r="250"/>
+            </svg>
+        </div>
+
+        <!-- プログレスリング -->
+        <div class="progress-container">
+            <svg class="progress-ring">
+                <circle cx="240" cy="240" r="235"></circle>
+                <circle class="progress" cx="240" cy="240" r="235" 
+                        stroke-dasharray="1477" 
+                        stroke-dashoffset="1477"></circle>
+            </svg>
+        </div>
+        
+        <div class="timer-display" id="display">〇〇:〇〇:〇〇</div>
+        
+        <div class="input-section">
+            <div class="input-group">
+                <label for="hours">時</label>
+                <input type="number" id="hours" min="0" max="23" value="0">
+            </div>
+            <div class="input-group">
+                <label for="minutes">分</label>
+                <input type="number" id="minutes" min="0" max="59" value="5">
+            </div>
+            <div class="input-group">
+                <label for="seconds">秒</label>
+                <input type="number" id="seconds" min="0" max="59" value="0">
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="startBtn" onclick="startTimer()">始</button>
+            <button id="pauseBtn" onclick="pauseTimer()" style="display: none;">止</button>
+            <button id="resetBtn" onclick="resetTimer()">初</button>
+        </div>
+    </div>
+
+    <!-- 落款 -->
+    <svg class="seal" viewBox="0 0 50 50">
+        <rect class="seal-bg" x="5" y="5" width="40" height="40" rx="5"/>
+        <text class="seal-text" x="25" y="32" text-anchor="middle">時</text>
+    </svg>
+
+    <script>
+        let timer = null;
+        let totalSeconds = 0;
+        let remainingSeconds = 0;
+        let isPaused = false;
+        const progressCircle = document.querySelector('.progress');
+        const circumference = 2 * Math.PI * 235;
+
+        function updateDisplay() {
+            const hours = Math.floor(remainingSeconds / 3600);
+            const minutes = Math.floor((remainingSeconds % 3600) / 60);
+            const seconds = remainingSeconds % 60;
+            
+            document.getElementById('display').textContent = 
+                `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            const progress = (totalSeconds - remainingSeconds) / totalSeconds;
+            const offset = circumference - (progress * circumference);
+            progressCircle.style.strokeDashoffset = offset;
+        }
+
+        function startTimer() {
+            if (!isPaused) {
+                const hours = parseInt(document.getElementById('hours').value) || 0;
+                const minutes = parseInt(document.getElementById('minutes').value) || 0;
+                const seconds = parseInt(document.getElementById('seconds').value) || 0;
+                
+                totalSeconds = hours * 3600 + minutes * 60 + seconds;
+                remainingSeconds = totalSeconds;
+                
+                if (totalSeconds === 0) return;
+            }
+            
+            isPaused = false;
+            document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('pauseBtn').style.display = 'inline-block';
+            
+            timer = setInterval(() => {
+                if (remainingSeconds > 0) {
+                    remainingSeconds--;
+                    updateDisplay();
+                } else {
+                    clearInterval(timer);
+                    alert('時至');
+                    resetTimer();
+                }
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            isPaused = true;
+            clearInterval(timer);
+            document.getElementById('startBtn').style.display = 'inline-block';
+            document.getElementById('pauseBtn').style.display = 'none';
+        }
+
+        function resetTimer() {
+            clearInterval(timer);
+            remainingSeconds = 0;
+            totalSeconds = 0;
+            isPaused = false;
+            updateDisplay();
+            progressCircle.style.strokeDashoffset = circumference;
+            document.getElementById('startBtn').style.display = 'inline-block';
+            document.getElementById('pauseBtn').style.display = 'none';
+        }
+
+        // 初期化
+        progressCircle.style.strokeDasharray = circumference;
+        progressCircle.style.strokeDashoffset = circumference;
+        updateDisplay();
+    </script>
+</body>
+</html>
