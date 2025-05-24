@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arkadia Poker Mini</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/lucide-static@0.263.0/font/lucide.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
+        
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+        }
+        
+        @keyframes sakura-fall {
+            0% { transform: translateY(-10px) translateX(0) rotate(0deg); opacity: 0; }
+            10% { opacity: 1; }
+            100% { transform: translateY(100vh) translateX(100px) rotate(360deg); opacity: 0; }
+        }
+        
+        .sakura-petal {
+            position: fixed;
+            width: 25px;
+            height: 25px;
+            background: radial-gradient(circle, rgba(255,182,193,0.9) 0%, rgba(255,105,180,0.6) 100%);
+            border-radius: 0 100% 0 100%;
+            animation: sakura-fall 10s linear infinite;
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .gold-shimmer {
+            background: linear-gradient(45deg, #FFD700, #FFA500, #FFD700);
+            background-size: 200% 200%;
+            animation: shimmer 3s ease-in-out infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .neon-glow {
+            text-shadow: 0 0 10px #ff00ff, 0 0 20px #ff00ff, 0 0 30px #ff00ff;
+        }
+        
+        .card-flip {
+            transform-style: preserve-3d;
+            transition: transform 0.6s;
+        }
+        
+        .card-flip:hover {
+            transform: rotateY(10deg) rotateX(-10deg);
+        }
+        
+        .zen-pattern {
+            background-image: 
+                repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(255,255,255,.03) 2px, rgba(255,255,255,.03) 4px),
+                repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,.03) 2px, rgba(255,255,255,.03) 4px);
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const PokerPreflopRangeGame = () => {
+            const positions = ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'];
+            const actions = ['OPEN', 'FOLD'];
+            
+            // 基本的なオープンレンジ
+            const openingRanges = {
+                'UTG': [
+                    'AA', 'KK', 'QQ', 'JJ', 'TT', '99', '88', '77',
+                    'AKs', 'AQs', 'AJs', 'ATs', 'A5s', 'A4s',
+                    'AKo', 'AQo', 'AJo',
+                    'KQs', 'KJs', 'QJs', 'JTs'
+                ],
+                'HJ': [
+                    'AA', 'KK', 'QQ', 'JJ', 'TT', '99', '88', '77', '66',
+                    'AKs', 'AQs', 'AJs', 'ATs', 'A9s', 'A8s', 'A7s', 'A6s', 'A5s', 'A4s', 'A3s', 'A2s',
+                    'AKo', 'AQo', 'AJo', 'ATo',
+                    'KQs', 'KJs', 'KTs', 'QJs', 'QTs', 'JTs', 'T9s', '98s', '87s', '76s',
+                    'KQo'
+                ],
+                'CO': [
+                    'AA', 'KK', 'QQ', 'JJ', 'TT', '99', '88', '77', '66', '55',
+                    'AKs', 'AQs', 'AJs', 'ATs', 'A9s', 'A8s', 'A7s', 'A6s', 'A5s', 'A4s', 'A3s', 'A2s',
+                    'AKo', 'AQo', 'AJo', 'ATo', 'A9o',
+                    'KQs', 'KJs', 'KTs', 'K9s', 'QJs', 'QTs', 'Q9s', 'JTs', 'J9s', 'T9s', 'T8s', '98s', '87s', '76s', '65s',
+                    'KQo', 'KJo', 'QJo'
+                ],
+                'BTN': [
+                    'AA', 'KK', 'QQ', 'JJ', 'TT', '99', '88', '77', '66', '55', '44', '33', '22',
+                    'AKs', 'AQs', 'AJs', 'ATs', 'A9s', 'A8s', 'A7s', 'A6s', 'A5s', 'A4s', 'A3s', 'A2s',
+                    'AKo', 'AQo', 'AJo', 'ATo', 'A9o', 'A8o', 'A7o', 'A6o', 'A5o',
+                    'KQs', 'KJs', 'KTs', 'K9s', 'K8s', 'K7s', 'K6s', 'K5s', 'K4s', 'K3s', 'K2s',
+                    'QJs', 'QTs', 'Q9s', 'Q8s', 'Q7s', 'Q6s',
+                    'JTs', 'J9s', 'J8s', 'J7s',
+                    'T9s', 'T8s', 'T7s', '98s', '97s', '87s', '86s', '76s', '75s', '65s', '64s', '54s',
+                    'KQo', 'KJo', 'KTo', 'QJo', 'QTo', 'JTo'
+                ],
+                'SB': [
+                    'AA', 'KK', 'QQ', 'JJ', 'TT', '99', '88', '77', '66', '55', '44', '33', '22',
+                    'AKs', 'AQs', 'AJs', 'ATs', 'A9s', 'A8s', 'A7s', 'A6s', 'A5s', 'A4s', 'A3s', 'A2s',
+                    'AKo', 'AQo', 'AJo', 'ATo', 'A9o', 'A8o', 'A7o', 'A6o', 'A5o', 'A4o',
+                    'KQs', 'KJs', 'KTs', 'K9s', 'K8s', 'K7s', 'K6s', 'K5s', 'K4s',
+                    'QJs', 'QTs', 'Q9s', 'Q8s', 'Q7s',
+                    'JTs', 'J9s', 'J8s',
+                    'T9s', 'T8s', '98s', '97s', '87s', '86s', '76s', '65s', '54s',
+                    'KQo', 'KJo', 'KTo', 'K9o', 'QJo', 'QTo', 'JTo'
+                ],
+                'BB': [
+                    // BBディフェンドレンジ（VSボタンオープン想定）
+                    'AA', 'KK', 'QQ', 'JJ', 'TT', '99', '88', '77', '66', '55', '44', '33', '22',
+                    'AKs', 'AQs', 'AJs', 'ATs', 'A9s', 'A8s', 'A7s', 'A6s', 'A5s', 'A4s', 'A3s', 'A2s',
+                    'AKo', 'AQo', 'AJo', 'ATo', 'A9o', 'A8o', 'A7o', 'A6o', 'A5o', 'A4o', 'A3o', 'A2o',
+                    'KQs', 'KJs', 'KTs', 'K9s', 'K8s', 'K7s', 'K6s', 'K5s', 'K4s', 'K3s', 'K2s',
+                    'KQo', 'KJo', 'KTo', 'K9o', 'K8o', 'K7o', 'K6o',
+                    'QJs', 'QTs', 'Q9s', 'Q8s', 'Q7s', 'Q6s', 'Q5s', 'Q4s', 'Q3s', 'Q2s',
+                    'QJo', 'QTo', 'Q9o', 'Q8o',
+                    'JTs', 'J9s', 'J8s', 'J7s', 'J6s', 'J5s', 'J4s',
+                    'JTo', 'J9o', 'J8o',
+                    'T9s', 'T8s', 'T7s', 'T6s', 'T5s', 'T4s',
+                    'T9o', 'T8o',
+                    '98s', '97s', '96s', '95s', '94s',
+                    '98o', '97o',
+                    '87s', '86s', '85s', '84s',
+                    '87o', '86o',
+                    '76s', '75s', '74s',
+                    '76o',
+                    '65s', '64s', '63s',
+                    '65o',
+                    '54s', '53s', '52s',
+                    '54o',
+                    '43s', '42s',
+                    '32s'
+                ]
+            };
+
+            const [currentPosition, setCurrentPosition] = useState('');
+            const [currentHand, setCurrentHand] = useState('');
+            const [score, setScore] = useState(0);
+            const [totalQuestions, setTotalQuestions] = useState(0);
+            const [feedback, setFeedback] = useState('');
+            const [showFeedback, setShowFeedback] = useState(false);
+            const [gameStarted, setGameStarted] = useState(false);
+            const [showRangeChart, setShowRangeChart] = useState(false);
+            const [selectedChartPosition, setSelectedChartPosition] = useState('UTG');
+
+            // 桜の花びらエフェクト
+            const SakuraPetals = () => {
+                return (
+                    <>
+                        {[...Array(5)].map((_, i) => (
+                            <div
+                                key={i}
+                                className="sakura-petal"
+                                style={{
+                                    left: `${Math.random() * 100}%`,
+                                    animationDelay: `${Math.random() * 10}s`,
+                                    animationDuration: `${10 + Math.random() * 10}s`
+                                }}
+                            />
+                        ))}
+                    </>
+                );
+            };
+
+            // 全てのハンドを生成
+            const generateAllHands = () => {
+                const ranks = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
+                const hands = [];
+                
+                // ポケットペア
+                for (const rank of ranks) {
+                    hands.push(rank + rank);
+                }
+                
+                // スーテッド
+                for (let i = 0; i < ranks.length; i++) {
+                    for (let j = i + 1; j < ranks.length; j++) {
+                        hands.push(ranks[i] + ranks[j] + 's');
+                    }
+                }
+                
+                // オフスート
+                for (let i = 0; i < ranks.length; i++) {
+                    for (let j = i + 1; j < ranks.length; j++) {
+                        hands.push(ranks[i] + ranks[j] + 'o');
+                    }
+                }
+                
+                return hands;
+            };
+
+            const allHands = generateAllHands();
+
+            const generateNewQuestion = () => {
+                const randomPosition = positions[Math.floor(Math.random() * positions.length)];
+                const randomHand = allHands[Math.floor(Math.random() * allHands.length)];
+                
+                setCurrentPosition(randomPosition);
+                setCurrentHand(randomHand);
+                setShowFeedback(false);
+                setFeedback('');
+            };
+
+            const handleAnswer = (action) => {
+                const correctAction = openingRanges[currentPosition].includes(currentHand) ? 'OPEN' : 'FOLD';
+                const isCorrect = action === correctAction;
+                
+                setTotalQuestions(totalQuestions + 1);
+                if (isCorrect) {
+                    setScore(score + 1);
+                    setFeedback('正解！');
+                } else {
+                    const actionText = currentPosition === 'BB' 
+                        ? (correctAction === 'OPEN' ? 'ディフェンド（コール/3ベット）' : 'フォールド')
+                        : (correctAction === 'OPEN' ? 'オープン' : 'フォールド');
+                    setFeedback(`不正解... 正解は${actionText}です`);
+                }
+                
+                setShowFeedback(true);
+                
+                setTimeout(() => {
+                    generateNewQuestion();
+                }, 2000);
+            };
+
+            const startGame = () => {
+                setGameStarted(true);
+                setScore(0);
+                setTotalQuestions(0);
+                generateNewQuestion();
+            };
+
+            // テーブルポジション表示コンポーネント
+            const TablePosition = ({ currentPosition }) => {
+                const positions = [
+                    { name: 'BTN', x: '85%', y: '50%' },
+                    { name: 'SB', x: '70%', y: '80%' },
+                    { name: 'BB', x: '30%', y: '80%' },
+                    { name: 'UTG', x: '15%', y: '50%' },
+                    { name: 'HJ', x: '30%', y: '20%' },
+                    { name: 'CO', x: '70%', y: '20%' }
+                ];
+                
+                return (
+                    <div className="relative w-full max-w-xs mx-auto mb-6">
+                        <svg viewBox="0 0 200 120" className="w-full h-auto">
+                            {/* 外側のテーブル枠 */}
+                            <ellipse cx="100" cy="60" rx="85" ry="50" 
+                                fill="rgba(0, 0, 0, 0.6)" 
+                                stroke="rgba(255, 215, 0, 0.6)" 
+                                strokeWidth="3"
+                            />
+                            
+                            {/* テーブル面 */}
+                            <ellipse cx="100" cy="60" rx="80" ry="45" 
+                                fill="rgba(0, 100, 0, 0.4)" 
+                                stroke="rgba(147, 51, 234, 0.5)" 
+                                strokeWidth="2"
+                            />
+                            
+                            {/* 内側のライン */}
+                            <ellipse cx="100" cy="60" rx="60" ry="35" 
+                                fill="none" 
+                                stroke="rgba(255, 215, 0, 0.3)" 
+                                strokeWidth="1"
+                                strokeDasharray="5,5"
+                            />
+                            
+                            {/* ディーラーボタン */}
+                            <g>
+                                <circle cx="170" cy="60" r="10" fill="white" stroke="gold" strokeWidth="2" />
+                                <text x="170" y="65" textAnchor="middle" className="text-xs font-black fill-black">D</text>
+                            </g>
+                            
+                            {/* ポジション */}
+                            {positions.map(pos => {
+                                const isActive = pos.name === currentPosition;
+                                return (
+                                    <g key={pos.name}>
+                                        {/* 光彩エフェクト */}
+                                        {isActive && (
+                                            <circle 
+                                                cx={pos.x} 
+                                                cy={pos.y} 
+                                                r="20" 
+                                                fill="none"
+                                                stroke="rgba(217, 70, 239, 0.6)"
+                                                strokeWidth="2"
+                                                className="animate-pulse"
+                                            />
+                                        )}
+                                        
+                                        {/* メインサークル */}
+                                        <circle 
+                                            cx={pos.x} 
+                                            cy={pos.y} 
+                                            r="16" 
+                                            fill={isActive 
+                                                ? 'url(#activeGradient)' 
+                                                : 'rgba(31, 41, 55, 0.9)'}
+                                            stroke={isActive 
+                                                ? 'rgba(255, 215, 0, 0.8)' 
+                                                : 'rgba(107, 114, 128, 0.6)'}
+                                            strokeWidth="2"
+                                        />
+                                        
+                                        {/* ポジション名 */}
+                                        <text 
+                                            x={pos.x} 
+                                            y={pos.y} 
+                                            textAnchor="middle" 
+                                            dominantBaseline="middle"
+                                            className={`text-xs font-black ${isActive ? 'fill-white' : 'fill-gray-300'}`}
+                                            style={{ textShadow: isActive ? '0 0 4px rgba(0,0,0,0.8)' : 'none' }}
+                                        >
+                                            {pos.name}
+                                        </text>
+                                    </g>
+                                );
+                            })}
+                            
+                            {/* グラデーション定義 */}
+                            <defs>
+                                <radialGradient id="activeGradient">
+                                    <stop offset="0%" stopColor="rgba(217, 70, 239, 0.9)" />
+                                    <stop offset="100%" stopColor="rgba(124, 58, 237, 0.9)" />
+                                </radialGradient>
+                            </defs>
+                        </svg>
+                        
+                        {/* 説明文 */}
+                        {currentPosition && (
+                            <div className="text-center mt-2">
+                                <span className="text-sm text-purple-300">
+                                    {currentPosition === 'UTG' && 'アンダー・ザ・ガン（最も早いポジション）'}
+                                    {currentPosition === 'HJ' && 'ハイジャック'}
+                                    {currentPosition === 'CO' && 'カットオフ'}
+                                    {currentPosition === 'BTN' && 'ボタン（ディーラー）'}
+                                    {currentPosition === 'SB' && 'スモールブラインド'}
+                                    {currentPosition === 'BB' && 'ビッグブラインド'}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                );
+            };
+
+            const formatHand = (hand) => {
+                if (hand.includes('s')) {
+                    return hand.replace('s', '');
+                } else if (hand.includes('o')) {
+                    return hand.replace('o', '');
+                }
+                return hand;
+            };
+
+            const getCardSymbol = (card) => {
+                const rankMap = {
+                    'A': 'A', 'K': 'K', 'Q': 'Q', 'J': 'J', 'T': '10',
+                    '9': '9', '8': '8', '7': '7', '6': '6', '5': '5',
+                    '4': '4', '3': '3', '2': '2'
+                };
+                return rankMap[card] || card;
+            };
+
+            const Card = ({ rank, suit, mini = false }) => {
+                const isRed = suit === '♥' || suit === '♦';
+                const cardSize = mini ? 'w-16 h-20' : 'w-24 h-32 sm:w-32 sm:h-44';
+                const fontSize = mini ? 'text-2xl' : 'text-4xl sm:text-5xl';
+                const suitSize = mini ? 'text-xl' : 'text-2xl sm:text-3xl';
+                
+                return (
+                    <div className={`${cardSize} relative card-flip`}>
+                        <div className={`absolute inset-0 bg-gradient-to-br from-white via-gray-100 to-gray-200 rounded-xl shadow-2xl border-2 border-gray-800 flex flex-col items-center justify-center font-bold ${isRed ? 'text-red-600' : 'text-gray-900'}`}>
+                            <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-white/50 to-transparent rounded-t-xl"></div>
+                            <div className={fontSize}>{getCardSymbol(rank)}</div>
+                            <div className={suitSize}>{suit}</div>
+                            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent pointer-events-none"></div>
+                        </div>
+                    </div>
+                );
+            };
+
+            const HandDisplay = ({ hand }) => {
+                const cleanHand = formatHand(hand);
+                const isSuited = hand.includes('s');
+                const isPair = cleanHand[0] === cleanHand[1];
+                
+                let card1Rank, card2Rank, card1Suit, card2Suit;
+                
+                if (isPair) {
+                    card1Rank = card2Rank = cleanHand[0];
+                    card1Suit = '♠';
+                    card2Suit = '♥';
+                } else {
+                    card1Rank = cleanHand[0];
+                    card2Rank = cleanHand[1];
+                    if (isSuited) {
+                        card1Suit = card2Suit = '♠';
+                    } else {
+                        card1Suit = '♠';
+                        card2Suit = '♥';
+                    }
+                }
+                
+                return (
+                    <div className="flex gap-3 sm:gap-4 justify-center items-center">
+                        <Card rank={card1Rank} suit={card1Suit} />
+                        <Card rank={card2Rank} suit={card2Suit} />
+                        <div className="ml-4 sm:ml-6 text-purple-200">
+                            {isSuited && !isPair && <div className="text-lg sm:text-2xl font-light">(suited)</div>}
+                            {!isSuited && !isPair && <div className="text-lg sm:text-2xl font-light">(offsuit)</div>}
+                        </div>
+                    </div>
+                );
+            };
+
+            // レンジチャート表示コンポーネント
+            const RangeChart = ({ position }) => {
+                const ranks = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
+                const range = openingRanges[position];
+                
+                const isInRange = (hand) => {
+                    return range.includes(hand);
+                };
+                
+                const getCellHand = (row, col) => {
+                    if (row === col) {
+                        return ranks[row] + ranks[col];
+                    } else if (row < col) {
+                        return ranks[row] + ranks[col] + 's';
+                    } else {
+                        return ranks[col] + ranks[row] + 'o';
+                    }
+                };
+                
+                return (
+                    <div className="bg-black/90 p-4 sm:p-6 rounded-2xl backdrop-blur-md border border-purple-500/30">
+                        <h3 className="text-xl sm:text-2xl font-bold text-transparent bg-clip-text gold-shimmer mb-4 sm:mb-6 text-center">
+                            {position} {position === 'BB' ? 'ディフェンドレンジ' : 'オープンレンジ'}
+                        </h3>
+                        <div className="overflow-x-auto">
+                            <div className="inline-block min-w-min">
+                                <div style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(13, minmax(0, 1fr))',
+                                    gap: '2px',
+                                    width: 'fit-content'
+                                }}>
+                                    {ranks.map((_, row) => 
+                                        ranks.map((_, col) => {
+                                            const hand = getCellHand(row, col);
+                                            const inRange = isInRange(hand);
+                                            const isPair = row === col;
+                                            const isSuited = row < col;
+                                            
+                                            return (
+                                                <div
+                                                    key={`${row}-${col}`}
+                                                    className={`
+                                                        w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center text-xs sm:text-sm font-bold rounded-md sm:rounded-lg
+                                                        transition-all duration-300 transform hover:scale-110 hover:z-10
+                                                        ${inRange 
+                                                            ? 'bg-gradient-to-br from-green-500 to-emerald-700 text-white shadow-lg shadow-green-500/50' 
+                                                            : 'bg-gray-800/80 text-gray-500 hover:bg-gray-700/80'}
+                                                        ${isPair ? 'ring-1 sm:ring-2 ring-yellow-400 ring-offset-1 ring-offset-black' : ''}
+                                                    `}
+                                                >
+                                                    {formatHand(hand)}
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex flex-wrap gap-4 sm:gap-6 justify-center text-xs sm:text-sm mt-4 sm:mt-6">
+                            <div className="flex items-center gap-2">
+                                <div className="w-5 h-5 sm:w-6 sm:h-6 bg-gradient-to-br from-green-500 to-emerald-700 rounded shadow-lg shadow-green-500/50"></div>
+                                <span className="text-gray-300">{position === 'BB' ? 'ディフェンド' : 'オープン'}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-5 h-5 sm:w-6 sm:h-6 bg-gray-800/80 rounded"></div>
+                                <span className="text-gray-300">フォールド</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-5 h-5 sm:w-6 sm:h-6 bg-gray-800 rounded ring-1 sm:ring-2 ring-yellow-400"></div>
+                                <span className="text-gray-300">ポケットペア</span>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            useEffect(() => {
+                if (gameStarted && !currentHand) {
+                    generateNewQuestion();
+                }
+            }, [gameStarted]);
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-black via-purple-950 to-pink-950 relative overflow-hidden">
+                    <SakuraPetals />
+                    <div className="absolute inset-0 zen-pattern opacity-10"></div>
+                    
+                    <div className="max-w-7xl mx-auto p-4 relative z-10">
+                        {/* ヘッダー */}
+                        <div className="text-center mb-6 sm:mb-8 relative">
+                            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-pink-300 via-purple-300 to-yellow-300 neon-glow">
+                                Arkadiaポーカー道場
+                            </h1>
+                            <p className="text-lg sm:text-xl md:text-2xl text-purple-200 font-light px-4">Arkadia Poker Mini Dojo</p>
+                            <p className="text-sm sm:text-base text-purple-300 px-4">6-Max Preflop Mastery</p>
+                            <div className="mt-4 flex justify-center gap-2">
+                                <span className="text-yellow-400">♠</span>
+                                <span className="text-pink-400">♥</span>
+                                <span className="text-yellow-400">♣</span>
+                                <span className="text-pink-400">♦</span>
+                            </div>
+                        </div>
+
+                        {!gameStarted ? (
+                            <div className="bg-black/60 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-6 sm:p-10 border border-purple-500/30 shadow-2xl shadow-purple-500/20 max-w-2xl mx-auto">
+                                <div className="text-center">
+                                    <h2 className="text-2xl sm:text-3xl font-bold text-transparent bg-clip-text gold-shimmer mb-4 sm:mb-6">
+                                        プリフロップの極意を身につけよ
+                                    </h2>
+                                    <p className="text-gray-300 mb-6 sm:mb-8 text-base sm:text-lg leading-relaxed px-4">
+                                        桜の花が舞い散る中、ポーカーの基礎を磨き上げましょう。<br />
+                                        各ポジションでの正しいアクションを選択し、<br className="hidden sm:inline" />
+                                        真のポーカーマスターへの道を歩みましょう。
+                                    </p>
+                                    
+                                    {/* ポジション説明 */}
+                                    <div className="mb-6 sm:mb-8">
+                                        <p className="text-gray-400 mb-3 text-sm sm:text-base">6-Max テーブルポジション</p>
+                                        <TablePosition currentPosition="" />
+                                        <div className="text-xs sm:text-sm text-gray-400 mt-2">
+                                            UTG → HJ → CO → BTN → SB → BB
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex flex-col sm:flex-row gap-4 justify-center px-4">
+                                        <button
+                                            onClick={startGame}
+                                            className="px-8 sm:px-10 py-3 sm:py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-full font-bold text-lg sm:text-xl transition-all duration-300 transform hover:scale-105 shadow-lg shadow-purple-500/50"
+                                        >
+                                            修行開始
+                                        </button>
+                                        <button
+                                            onClick={() => setShowRangeChart(true)}
+                                            className="px-8 sm:px-10 py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-full font-bold text-lg sm:text-xl transition-all duration-300 transform hover:scale-105 shadow-lg shadow-blue-500/50"
+                                        >
+                                            レンジ表
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                {/* スコアボード */}
+                                <div className="bg-black/60 backdrop-blur-xl rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6 border border-purple-500/30 shadow-xl">
+                                    <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                                        <div className="flex gap-6 sm:gap-8">
+                                            <div className="text-center sm:text-left">
+                                                <span className="text-gray-400 text-xs sm:text-sm">正解数</span>
+                                                <div className="text-2xl sm:text-3xl font-bold text-transparent bg-clip-text gold-shimmer">
+                                                    {score} / {totalQuestions}
+                                                </div>
+                                            </div>
+                                            {totalQuestions > 0 && (
+                                                <div className="text-center sm:text-left">
+                                                    <span className="text-gray-400 text-xs sm:text-sm">正答率</span>
+                                                    <div className="text-2xl sm:text-3xl font-bold text-transparent bg-clip-text gold-shimmer">
+                                                        {Math.round((score / totalQuestions) * 100)}%
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <button
+                                            onClick={() => setShowRangeChart(true)}
+                                            className="px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-full font-bold text-sm sm:text-base transition-all duration-300 transform hover:scale-105 shadow-lg"
+                                        >
+                                            レンジ表
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* メインゲームエリア */}
+                                <div className="bg-black/60 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-6 sm:p-10 border border-purple-500/30 shadow-2xl shadow-purple-500/20">
+                                    {/* ポジション表示 */}
+                                    <div className="text-center mb-6 sm:mb-8">
+                                        <p className="text-gray-400 mb-2 sm:mb-3 text-base sm:text-lg">現在のポジション</p>
+                                        <TablePosition currentPosition={currentPosition} />
+                                        <div className="inline-block px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-purple-800/50 to-pink-800/50 rounded-xl sm:rounded-2xl border border-purple-400/50 shadow-inner">
+                                            <span className="text-3xl sm:text-4xl font-black text-transparent bg-clip-text gold-shimmer">
+                                                {currentPosition}
+                                            </span>
+                                        </div>
+                                        {currentPosition === 'BB' && (
+                                            <p className="text-xs sm:text-sm text-purple-300 mt-2 sm:mt-3">（BTNオープンに対して）</p>
+                                        )}
+                                    </div>
+
+                                    {/* ハンド表示 */}
+                                    <div className="text-center mb-8 sm:mb-10">
+                                        <p className="text-gray-400 mb-4 sm:mb-6 text-base sm:text-lg">あなたのハンド</p>
+                                        <HandDisplay hand={currentHand} />
+                                    </div>
+
+                                    {/* アクションボタン */}
+                                    <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center mb-6 sm:mb-8 px-4 sm:px-0">
+                                        <button
+                                            onClick={() => handleAnswer('OPEN')}
+                                            disabled={showFeedback}
+                                            className="px-8 sm:px-12 py-4 sm:py-5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-600 disabled:to-gray-700 text-white rounded-full font-bold text-xl sm:text-2xl transition-all duration-300 transform hover:scale-105 disabled:scale-100 shadow-xl shadow-green-500/30 disabled:shadow-none"
+                                        >
+                                            {currentPosition === 'BB' ? 'ディフェンド' : 'オープン'}
+                                        </button>
+                                        <button
+                                            onClick={() => handleAnswer('FOLD')}
+                                            disabled={showFeedback}
+                                            className="px-8 sm:px-12 py-4 sm:py-5 bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 disabled:from-gray-600 disabled:to-gray-700 text-white rounded-full font-bold text-xl sm:text-2xl transition-all duration-300 transform hover:scale-105 disabled:scale-100 shadow-xl shadow-red-500/30 disabled:shadow-none"
+                                        >
+                                            フォールド
+                                        </button>
+                                    </div>
+
+                                    {/* フィードバック */}
+                                    {showFeedback && (
+                                        <div className={`text-center p-4 sm:p-6 rounded-xl sm:rounded-2xl ${feedback.includes('正解') ? 'bg-green-900/40 border border-green-500/50' : 'bg-red-900/40 border border-red-500/50'}`}>
+                                            <div className="flex items-center justify-center gap-2 sm:gap-3">
+                                                {feedback.includes('正解') ? (
+                                                    <i className="lucide-check-circle text-green-400" style={{fontSize: '28px'}}></i>
+                                                ) : (
+                                                    <i className="lucide-x-circle text-red-400" style={{fontSize: '28px'}}></i>
+                                                )}
+                                                <span className={`text-xl sm:text-2xl font-bold ${feedback.includes('正解') ? 'text-green-400' : 'text-red-400'}`}>
+                                                    {feedback}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* リセットボタン */}
+                                <div className="text-center mt-6 sm:mt-8">
+                                    <button
+                                        onClick={startGame}
+                                        className="flex items-center gap-2 sm:gap-3 mx-auto px-6 sm:px-8 py-2 sm:py-3 bg-gray-800/80 hover:bg-gray-700/80 text-white rounded-full transition-all duration-300 backdrop-blur-md text-sm sm:text-base"
+                                    >
+                                        <i className="lucide-refresh-cw" style={{fontSize: '18px'}}></i>
+                                        最初から
+                                    </button>
+                                </div>
+                            </>
+                        )}
+
+                        {/* レンジチャートモーダル */}
+                        {showRangeChart && (
+                            <div 
+                                className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50 backdrop-blur-md"
+                                onClick={() => setShowRangeChart(false)}
+                            >
+                                <div 
+                                    className="bg-gradient-to-br from-gray-900 via-purple-900 to-black rounded-2xl sm:rounded-3xl p-4 sm:p-8 w-full max-w-5xl max-h-[90vh] overflow-auto border border-purple-500/30 shadow-2xl"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <div className="flex justify-between items-center mb-4 sm:mb-6">
+                                        <h2 className="text-2xl sm:text-3xl font-bold text-transparent bg-clip-text gold-shimmer">
+                                            レンジ表
+                                        </h2>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => setShowRangeChart(false)}
+                                                className="px-4 sm:px-6 py-2 bg-gray-700/80 hover:bg-gray-600/80 text-white rounded-full text-sm sm:text-base font-bold transition-all duration-300"
+                                            >
+                                                ゲームに戻る
+                                            </button>
+                                            <button
+                                                onClick={() => setShowRangeChart(false)}
+                                                className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full"
+                                            >
+                                                <i className="lucide-x" style={{fontSize: '24px'}}></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex gap-2 sm:gap-3 mb-4 sm:mb-6 flex-wrap justify-center">
+                                        {positions.map(pos => (
+                                            <button
+                                                key={pos}
+                                                onClick={() => setSelectedChartPosition(pos)}
+                                                className={`px-4 sm:px-6 py-2 sm:py-3 rounded-full font-bold text-sm sm:text-base transition-all duration-300 transform hover:scale-105 ${
+                                                    selectedChartPosition === pos 
+                                                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/50' 
+                                                    : 'bg-gray-800/80 text-gray-300 hover:bg-gray-700/80'
+                                                }`}
+                                            >
+                                                {pos}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    
+                                    <RangeChart position={selectedChartPosition} />
+                                    
+                                    <div className="mt-6 text-center">
+                                        <button
+                                            onClick={() => setShowRangeChart(false)}
+                                            className="px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-full font-bold text-base sm:text-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
+                                        >
+                                            閉じる
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // Reactアプリケーションをレンダリング
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<PokerPreflopRangeGame />);
+    </script>
+</body>
+</html>
