@@ -72,12 +72,12 @@
         const { useState, useEffect } = React;
 
         const PokerPreflopRangeGame = () => {
-            const positions = ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'];
+            const positions = ['LJ', 'HJ', 'CO', 'BTN', 'SB', 'BB'];
             const actions = ['OPEN', 'FOLD'];
             
             // 基本的なオープンレンジ
             const openingRanges = {
-                'UTG': [
+                'LJ': [
                     'AA', 'KK', 'QQ', 'JJ', 'TT', '99', '88', '77',
                     'AKs', 'AQs', 'AJs', 'ATs', 'A5s', 'A4s',
                     'AKo', 'AQo', 'AJo',
@@ -153,7 +153,7 @@
             const [showFeedback, setShowFeedback] = useState(false);
             const [gameStarted, setGameStarted] = useState(false);
             const [showRangeChart, setShowRangeChart] = useState(false);
-            const [selectedChartPosition, setSelectedChartPosition] = useState('UTG');
+            const [selectedChartPosition, setSelectedChartPosition] = useState('LJ');
 
             // 桜の花びらエフェクト
             const SakuraPetals = () => {
@@ -248,7 +248,7 @@
                     { name: 'BTN', x: '85%', y: '50%' },
                     { name: 'SB', x: '70%', y: '80%' },
                     { name: 'BB', x: '30%', y: '80%' },
-                    { name: 'UTG', x: '15%', y: '50%' },
+                    { name: 'LJ', x: '15%', y: '50%' },
                     { name: 'HJ', x: '30%', y: '20%' },
                     { name: 'CO', x: '70%', y: '20%' }
                 ];
@@ -344,7 +344,7 @@
                         {currentPosition && (
                             <div className="text-center mt-2">
                                 <span className="text-sm text-purple-300">
-                                    {currentPosition === 'UTG' && 'アンダー・ザ・ガン（最も早いポジション）'}
+                                    {currentPosition === 'LJ' && 'アンダー・ザ・ガン（最も早いポジション）'}
                                     {currentPosition === 'HJ' && 'ハイジャック'}
                                     {currentPosition === 'CO' && 'カットオフ'}
                                     {currentPosition === 'BTN' && 'ボタン（ディーラー）'}
@@ -548,7 +548,7 @@
                                         <p className="text-gray-400 mb-3 text-sm sm:text-base">6-Max テーブルポジション</p>
                                         <TablePosition currentPosition="" />
                                         <div className="text-xs sm:text-sm text-gray-400 mt-2">
-                                            UTG → HJ → CO → BTN → SB → BB
+                                            LJ → HJ → CO → BTN → SB → BB
                                         </div>
                                     </div>
                                     
