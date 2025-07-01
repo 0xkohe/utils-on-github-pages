@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Magical Dungeon Girls - 美少女ローグライク</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap');
+        
+        body {
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(236, 72, 153, 0.6); }
+            50% { box-shadow: 0 0 40px rgba(236, 72, 153, 1); }
+        }
+        
+        .float-animation {
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        .glow-animation {
+            animation: glow 2s ease-in-out infinite;
+        }
+        
+        .sparkle {
+            position: absolute;
+            width: 5px;
+            height: 5px;
+            background: white;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 100;
+            animation: sparkle-anim 1.5s linear infinite;
+        }
+        
+        @keyframes sparkle-anim {
+            0% { opacity: 0; transform: scale(0); }
+            50% { opacity: 1; transform: scale(1.2); }
+            100% { opacity: 0; transform: scale(0); }
+        }
+
+        .skill-effect {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 90;
+        }
+
+        .skill-effect-symbol {
+            font-size: 10rem;
+            animation: skill-symbol-anim 1s ease-out forwards;
+            opacity: 0;
+            text-shadow: 0 0 30px white;
+        }
+
+        @keyframes skill-symbol-anim {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 0; }
+        }
+    </style>
+</head>
+<body class="bg-gray-900">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, StrictMode } = React;
+        
+        // --- 定数定義 ---
+        const TILE_SIZE = 35;
+        const MAP_WIDTH = 15;
+        const MAP_HEIGHT = 15;
+
+        // --- キャラクターデータ ---
+        const CHARACTERS = [
+            { id: 'mika', name: 'ミカ', title: '魔法少女', color: '#ec4899', emoji: '🌸', portrait: '👱‍♀️', skill: 'ヒーリングライト', skillDesc: 'HPを50%回復する癒しの魔法', baseHp: 100, baseAttack: 12, quotes: { start: 'みんなを守るために戦うよ！', levelUp: 'もっと強くなれる気がする！✨', damage: 'きゃっ！痛い…', heal: '癒しの光よ！', victory: 'やったー！勝利だよ！', skill: '癒しの魔法、ヒーリングライト！💖' } },
+            { id: 'yui', name: 'ユイ', title: '剣士少女', color: '#3b82f6', emoji: '⚔️', portrait: '👩‍🦰', skill: 'ブレードダンス', skillDesc: '全ての敵にダメージを与える剣技', baseHp: 120, baseAttack: 15, quotes: { start: '私の剣で道を切り開く！', levelUp: '剣技に磨きがかかったわ！⚔️', damage: 'くっ…まだまだ！', heal: 'ありがとう！', victory: '正義は勝つ！', skill: '舞うように斬る、ブレードダンス！⚔️' } },
+            { id: 'luna', name: 'ルナ', title: '魔女っ子', color: '#8b5cf6', emoji: '🌙', portrait: '🧙‍♀️', skill: 'ダークネスノヴァ', skillDesc: '最も近い敵に強力な闇魔法', baseHp: 80, baseAttack: 18, quotes: { start: '闇の力を見せてあげる…', levelUp: '魔力が高まっていく…🌙', damage: 'いたっ…許さない', heal: 'ふふ、悪くないわね', victory: '当然の結果ね', skill: '闇よ、敵を飲み込め！ダークネスノヴァ！🌑' } }
+        ];
+
+        // --- ゲームコンポーネント ---
+        function MagicalDungeonGirls() {
+            // --- ステート定義 ---
+            const [selectedCharacter, setSelectedCharacter] = useState(null);
+            const [gameState, setGameState] = useState('characterSelect'); // 'characterSelect', 'playing', 'gameOver'
+            const [floor, setFloor] = useState(1);
+            const [message, setMessage] = useState({ text: '', type: 'normal' });
+            const [skillCooldown, setSkillCooldown] = useState(0);
+            const [showEffect, setShowEffect] = useState(null);
+            const [sparkles, setSparkles] = useState([]);
+            
+            const [map, setMap] = useState([]);
+            const [player, setPlayer] = useState({ x: 1, y: 1, hp: 100, maxHp: 100, attack: 10, level: 1, exp: 0, expToNext: 50 });
+            const [enemies, setEnemies] = useState([]);
+            const [items, setItems] = useState([]);
+            const [stairs, setStairs] = useState(null);
+
+            // --- 副作用フック ---
+            
+            // アイコンの初期化
+            useEffect(() => {
+                lucide.createIcons();
+            }, []);
+
+            // HPが0になったらゲームオーバー
+            useEffect(() => {
+                if (player.hp <= 0 && gameState === 'playing') {
+                    setGameState('gameOver');
+                }
+            }, [player.hp, gameState]);
+
+            // --- 関数定義 ---
+
+            // メッセージ表示関数
+            const showMessage = (text, type = 'normal') => {
+                setMessage({ text, type });
+                if (type === 'skill') {
+                    setShowEffect('skill');
+                    const newSparkles = Array.from({ length: 25 }, (_, i) => ({
+                        id: Date.now() + i,
+                        x: Math.random() * window.innerWidth,
+                        y: Math.random() * window.innerHeight,
+                        delay: Math.random() * 1.5
+                    }));
+                    setSparkles(newSparkles);
+                    setTimeout(() => {
+                        setShowEffect(null);
+                        setSparkles([]);
+                    }, 1500);
+                }
+                setTimeout(() => setMessage({ text: '', type: 'normal' }), 3000);
+            };
+
+            // ダンジョン生成関数
+            const generateDungeon = (currentFloor) => {
+                const newMap = Array(MAP_HEIGHT).fill(0).map(() => Array(MAP_WIDTH).fill(1)); // 1:壁, 0:床
+                const rooms = [];
+                const numRooms = 5 + Math.floor(Math.random() * 3);
+                
+                // 部屋を生成
+                for (let i = 0; i < numRooms; i++) {
+                    const w = Math.floor(Math.random() * 4) + 4;
+                    const h = Math.floor(Math.random() * 4) + 4;
+                    const x = Math.floor(Math.random() * (MAP_WIDTH - w - 2)) + 1;
+                    const y = Math.floor(Math.random() * (MAP_HEIGHT - h - 2)) + 1;
+                    const room = { x, y, w, h };
+                    
+                    let overlaps = false;
+                    for (const otherRoom of rooms) {
+                        if (x < otherRoom.x + otherRoom.w && x + w > otherRoom.x && y < otherRoom.y + otherRoom.h && y + h > otherRoom.y) {
+                            overlaps = true;
+                            break;
+                        }
+                    }
+                    if (overlaps) {
+                        i--;
+                        continue;
+                    }
+                    
+                    for (let ry = y; ry < y + h; ry++) {
+                        for (let rx = x; rx < x + w; rx++) {
+                            newMap[ry][rx] = 0;
+                        }
+                    }
+                    rooms.push(room);
+                }
+                
+                // 通路を生成
+                for (let i = 0; i < rooms.length - 1; i++) {
+                    const start = { x: Math.floor(rooms[i].x + rooms[i].w / 2), y: Math.floor(rooms[i].y + rooms[i].h / 2) };
+                    const end = { x: Math.floor(rooms[i+1].x + rooms[i+1].w / 2), y: Math.floor(rooms[i+1].y + rooms[i+1].h / 2) };
+
+                    if (Math.random() > 0.5) { // 水平→垂直
+                        for (let x = Math.min(start.x, end.x); x <= Math.max(start.x, end.x); x++) newMap[start.y][x] = 0;
+                        for (let y = Math.min(start.y, end.y); y <= Math.max(start.y, end.y); y++) newMap[y][end.x] = 0;
+                    } else { // 垂直→水平
+                        for (let y = Math.min(start.y, end.y); y <= Math.max(start.y, end.y); y++) newMap[y][start.x] = 0;
+                        for (let x = Math.min(start.x, end.x); x <= Math.max(start.x, end.x); x++) newMap[start.y][x] = 0;
+                    }
+                }
+                
+                const getEmptyTile = () => {
+                    let x, y;
+                    do {
+                        const room = rooms[Math.floor(Math.random() * rooms.length)];
+                        x = room.x + Math.floor(Math.random() * room.w);
+                        y = room.y + Math.floor(Math.random() * room.h);
+                    } while (newMap[y][x] !== 0);
+                    return { x, y };
+                };
+
+                const firstRoom = rooms[0];
+                const playerStart = { x: firstRoom.x + Math.floor(firstRoom.w / 2), y: firstRoom.y + Math.floor(firstRoom.h / 2) };
+                setPlayer(prev => ({ ...prev, ...playerStart }));
+
+                const lastRoom = rooms[rooms.length - 1];
+                setStairs({ x: lastRoom.x + Math.floor(lastRoom.w / 2), y: lastRoom.y + Math.floor(lastRoom.h / 2) });
+                
+                const occupiedTiles = new Set([`${playerStart.x},${playerStart.y}`]);
+
+                // 敵を配置
+                const newEnemies = [];
+                const numEnemies = 2 + currentFloor * 2;
+                const enemyTypes = [ { type: 'slime', emoji: '💧', name: 'スライム', hp: 20, attack: 5 }, { type: 'goblin', emoji: '👺', name: 'ゴブリン', hp: 30, attack: 8 }, { type: 'ghost', emoji: '👻', name: 'ゴースト', hp: 25, attack: 7 }, { type: 'demon', emoji: '😈', name: 'デーモン', hp: 40, attack: 10 } ];
+                for (let i = 0; i < numEnemies; i++) {
+                    const tile = getEmptyTile();
+                    if (occupiedTiles.has(`${tile.x},${tile.y}`)) continue;
+                    occupiedTiles.add(`${tile.x},${tile.y}`);
+
+                    const enemyType = enemyTypes[Math.min(Math.floor(Math.random() * (1 + currentFloor / 3)), enemyTypes.length - 1)];
+                    newEnemies.push({ ...tile, ...enemyType, hp: enemyType.hp + currentFloor * 5, maxHp: enemyType.hp + currentFloor * 5, attack: enemyType.attack + currentFloor * 2 });
+                }
+                
+                // アイテムを配置
+                const newItems = [];
+                const numItems = 2 + Math.floor(Math.random() * 2);
+                const itemTypes = [ { type: 'potion', emoji: '🧪', name: 'ポーション' }, { type: 'powerup', emoji: '💪', name: 'パワーアップ' }, { type: 'magic', emoji: '✨', name: 'マジックオーブ' }, { type: 'heart', emoji: '💖', name: 'ライフハート' } ];
+                for (let i = 0; i < numItems; i++) {
+                    const tile = getEmptyTile();
+                     if (occupiedTiles.has(`${tile.x},${tile.y}`)) continue;
+                    occupiedTiles.add(`${tile.x},${tile.y}`);
+                    newItems.push({ ...tile, ...itemTypes[Math.floor(Math.random() * itemTypes.length)] });
+                }
+                
+                setMap(newMap);
+                setEnemies(newEnemies);
+                setItems(newItems);
+            };
+
+            // プレイヤーの移動とアクション
+            const movePlayer = (dx, dy) => {
+                if (gameState !== 'playing') return;
+
+                let tempPlayer = { ...player };
+                let tempEnemies = [...enemies];
+                let tempItems = [...items];
+                let turnAdvanced = false;
+
+                const newX = tempPlayer.x + dx;
+                const newY = tempPlayer.y + dy;
+                
+                if (newX < 0 || newX >= MAP_WIDTH || newY < 0 || newY >= MAP_HEIGHT || map[newY][newX] === 1) return;
+                
+                const enemyIndex = tempEnemies.findIndex(e => e.x === newX && e.y === newY);
+                if (enemyIndex !== -1) {
+                    // --- 戦闘処理 ---
+                    const enemy = tempEnemies[enemyIndex];
+                    enemy.hp -= tempPlayer.attack;
+                    showMessage(`${selectedCharacter.name}の攻撃！ ${enemy.name}に${tempPlayer.attack}ダメージ！`);
+                    
+                    if (enemy.hp <= 0) {
+                        tempEnemies.splice(enemyIndex, 1);
+                        const expGain = 10 + floor * 5;
+                        const newExp = tempPlayer.exp + expGain;
+                        showMessage(`${enemy.name}を倒した！ ${expGain}EXP獲得！`);
+                        
+                        if (newExp >= tempPlayer.expToNext) {
+                            tempPlayer.level++;
+                            tempPlayer.exp = newExp - tempPlayer.expToNext;
+                            tempPlayer.expToNext = tempPlayer.level * 60;
+                            tempPlayer.maxHp += 20;
+                            tempPlayer.hp += 20;
+                            tempPlayer.attack += 5;
+                            showMessage(selectedCharacter.quotes.levelUp, 'skill');
+                        } else {
+                            tempPlayer.exp = newExp;
+                        }
+                    } else {
+                        // 敵の反撃
+                        const damage = enemy.attack;
+                        const newHp = Math.max(0, tempPlayer.hp - damage);
+                        tempPlayer.hp = newHp;
+                        showMessage(`${selectedCharacter.quotes.damage} ${enemy.name}から${damage}ダメージ！`);
+                    }
+                    turnAdvanced = true;
+                } else {
+                    // --- 移動処理 ---
+                    tempPlayer.x = newX;
+                    tempPlayer.y = newY;
+                    
+                    const itemIndex = tempItems.findIndex(i => i.x === newX && i.y === newY);
+                    if (itemIndex !== -1) {
+                        const item = tempItems.splice(itemIndex, 1)[0];
+                        switch (item.type) {
+                            case 'potion':
+                                const healAmount = 30;
+                                tempPlayer.hp = Math.min(tempPlayer.hp + healAmount, tempPlayer.maxHp);
+                                showMessage(`${selectedCharacter.quotes.heal} ${item.name}でHP${healAmount}回復！`);
+                                break;
+                            case 'powerup':
+                                tempPlayer.attack += 3;
+                                showMessage(`${item.name}で攻撃力+3！`);
+                                break;
+                            case 'magic':
+                                setSkillCooldown(0);
+                                showMessage(`${item.name}でスキルが使用可能に！`);
+                                break;
+                            case 'heart':
+                                tempPlayer.maxHp += 10;
+                                tempPlayer.hp += 10;
+                                showMessage(`${item.name}で最大HP+10！`);
+                                break;
+                        }
+                    }
+                    
+                    if (stairs && newX === stairs.x && newY === stairs.y) {
+                        const nextFloor = floor + 1;
+                        setFloor(nextFloor);
+                        showMessage(`階層${nextFloor}Fへ到達！`, 'skill');
+                        generateDungeon(nextFloor);
+                        return; // 敵ターンをスキップして次のフロアへ
+                    }
+                    turnAdvanced = true;
+                }
+                
+                // 敵のターン処理
+                if (turnAdvanced) {
+                    tempEnemies.forEach(enemy => {
+                        const dx = Math.sign(tempPlayer.x - enemy.x);
+                        const dy = Math.sign(tempPlayer.y - enemy.y);
+                        
+                        if (Math.abs(tempPlayer.x - enemy.x) <= 5 && Math.abs(tempPlayer.y - enemy.y) <= 5) {
+                            const nextX = enemy.x + dx;
+                            const nextY = enemy.y + dy;
+                            
+                            if (nextX === tempPlayer.x && nextY === tempPlayer.y) {
+                                const damage = enemy.attack;
+                                tempPlayer.hp = Math.max(0, tempPlayer.hp - damage);
+                                showMessage(`${enemy.name}の攻撃！ ${damage}ダメージ！`);
+                            } else if (map[nextY][nextX] === 0 && !tempEnemies.some(e => e.x === nextX && e.y === nextY)) {
+                                enemy.x = nextX;
+                                enemy.y = nextY;
+                            }
+                        }
+                    });
+                    if (skillCooldown > 0) setSkillCooldown(prev => prev - 1);
+                }
+                
+                // ステートをまとめて更新
+                setPlayer(tempPlayer);
+                setEnemies(tempEnemies);
+                setItems(tempItems);
+            };
+
+            // スキル使用
+            const useSkill = () => {
+                if (skillCooldown > 0 || gameState !== 'playing') return;
+                
+                showMessage(selectedCharacter.quotes.skill, 'skill');
+                setSkillCooldown(5);
+                
+                switch (selectedCharacter.id) {
+                    case 'mika':
+                        const healAmount = Math.floor(player.maxHp * 0.5);
+                        setPlayer(prev => ({ ...prev, hp: Math.min(prev.hp + healAmount, prev.maxHp) }));
+                        break;
+                    case 'yui':
+                        setEnemies(prev => prev.map(enemy => ({ ...enemy, hp: enemy.hp - player.attack })).filter(enemy => enemy.hp > 0));
+                        break;
+                    case 'luna':
+                        const nearestEnemy = enemies.reduce((nearest, enemy) => {
+                            const distance = Math.abs(player.x - enemy.x) + Math.abs(player.y - enemy.y);
+                            if (!nearest) return { enemy, distance };
+                            return distance < nearest.distance ? { enemy, distance } : nearest;
+                        }, null);
+                        
+                        if (nearestEnemy) {
+                            setEnemies(prev => prev.map(enemy => 
+                                enemy === nearestEnemy.enemy ? { ...enemy, hp: enemy.hp - player.attack * 3 } : enemy
+                            ).filter(enemy => enemy.hp > 0));
+                        }
+                        break;
+                }
+            };
+
+            // キー入力のハンドリング
+            useEffect(() => {
+                const handleKeyPress = (e) => {
+                    if (gameState !== 'playing') return;
+                    
+                    e.preventDefault();
+                    switch(e.key) {
+                        case 'ArrowUp': case 'w': case 'W': movePlayer(0, -1); break;
+                        case 'ArrowDown': case 's': case 'S': movePlayer(0, 1); break;
+                        case 'ArrowLeft': case 'a': case 'A': movePlayer(-1, 0); break;
+                        case 'ArrowRight': case 'd': case 'D': movePlayer(1, 0); break;
+                        case ' ': useSkill(); break;
+                    }
+                };
+                
+                window.addEventListener('keydown', handleKeyPress);
+                return () => window.removeEventListener('keydown', handleKeyPress);
+            }, [gameState, map, player, enemies, items, stairs, floor, selectedCharacter, skillCooldown]);
+
+            // ゲーム開始
+            const startGame = (character) => {
+                setSelectedCharacter(character);
+                setPlayer(prev => ({
+                    ...prev,
+                    hp: character.baseHp,
+                    maxHp: character.baseHp,
+                    attack: character.baseAttack,
+                    level: 1,
+                    exp: 0,
+                    expToNext: 50
+                }));
+                setFloor(1);
+                setGameState('playing');
+                showMessage(character.quotes.start);
+                generateDungeon(1);
+            };
+
+            // ゲームリスタート
+            const restartGame = () => {
+                setGameState('characterSelect');
+                setSkillCooldown(0);
+            };
+            
+            // --- レンダリング ---
+            
+            // キャラクター選択画面
+            if (gameState === 'characterSelect') {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-pink-800 to-indigo-900 flex items-center justify-center p-4">
+                        <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-8 max-w-5xl w-full">
+                            <h1 className="text-5xl font-extrabold text-center mb-2 text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">
+                                ✨ Magical Dungeon Girls ✨
+                            </h1>
+                            <p className="text-center text-gray-600 mb-8 text-lg">好きなキャラクターを選んでダンジョンに挑もう！</p>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                {CHARACTERS.map(char => (
+                                    <div key={char.id} onClick={() => startGame(char)} className="bg-gradient-to-br from-purple-100 to-pink-100 rounded-2xl p-6 cursor-pointer transform transition-all hover:scale-105 hover:shadow-xl border-2 border-transparent hover:border-pink-400">
+                                        <div className="text-center mb-4">
+                                            <div className="text-7xl mb-2 float-animation">{char.portrait}</div>
+                                            <div className="text-4xl">{char.emoji}</div>
+                                        </div>
+                                        <h3 className="text-3xl font-bold text-center mb-1" style={{ color: char.color }}>{char.name}</h3>
+                                        <p className="text-sm text-gray-600 text-center mb-4">{char.title}</p>
+                                        <div className="space-y-3">
+                                            <div className="flex justify-between items-center bg-white/60 rounded-lg px-3 py-2"><span className="text-gray-600 flex items-center gap-1"><span className="text-red-500 text-lg">❤️</span> HP:</span><span className="font-bold text-lg">{char.baseHp}</span></div>
+                                            <div className="flex justify-between items-center bg-white/60 rounded-lg px-3 py-2"><span className="text-gray-600 flex items-center gap-1"><span className="text-orange-500 text-lg">⚔️</span> 攻撃力:</span><span className="font-bold text-lg">{char.baseAttack}</span></div>
+                                            <div className="mt-4 p-4 bg-gradient-to-r from-purple-200 to-pink-200 rounded-lg"><p className="font-bold text-purple-700 text-lg mb-1">{char.skill}</p><p className="text-sm text-gray-700">{char.skillDesc}</p></div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            
+                            <div className="mt-8 text-center text-gray-500"><p className="text-sm">矢印キー/WASD: 移動 | スペース: スキル使用</p></div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // ゲーム画面
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-purple-900 via-pink-800 to-indigo-900 flex items-center justify-center p-2 sm:p-4">
+                    {/* エフェクト用 */}
+                    {sparkles.map(s => <div key={s.id} className="sparkle" style={{ left: s.x, top: s.y, animationDelay: `${s.delay}s` }} />)}
+                    {showEffect === 'skill' && <div className="skill-effect"><div className="skill-effect-symbol">{selectedCharacter.emoji}</div></div>}
+                    
+                    <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-4 sm:p-6 max-w-4xl w-full relative">
+                        {/* ヘッダー */}
+                        <div className="flex justify-between items-center mb-4">
+                            <div className="flex items-center gap-4">
+                                <div className="text-6xl float-animation">{selectedCharacter.portrait}</div>
+                                <div>
+                                    <h2 className="text-2xl font-bold flex items-center gap-2" style={{ color: selectedCharacter.color }}>{selectedCharacter.name} {selectedCharacter.emoji}</h2>
+                                    <p className="text-sm text-gray-600">Lv.{player.level} {selectedCharacter.title}</p>
+                                </div>
+                            </div>
+                            <div className="text-right"><p className="text-sm text-gray-600">階層</p><p className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">{floor}F</p></div>
+                        </div>
+
+                        {/* メッセージ */}
+                        {message.text && (
+                            <div className={`absolute top-20 left-1/2 -translate-x-1/2 bg-white/95 px-6 py-3 rounded-full shadow-lg z-50 animate-bounce ${message.type === 'skill' ? 'glow-animation' : ''}`}>
+                                <p className="text-purple-600 font-bold text-base sm:text-lg whitespace-nowrap">{message.text}</p>
+                            </div>
+                        )}
+
+                        {/* ゲームマップ */}
+                        <div className="relative bg-gradient-to-br from-gray-800 to-purple-900 rounded-2xl p-2 sm:p-4 mb-4 overflow-hidden shadow-inner">
+                            <div className="relative mx-auto" style={{ width: MAP_WIDTH * TILE_SIZE, height: MAP_HEIGHT * TILE_SIZE }}>
+                                {map.map((row, y) => row.map((tile, x) => (
+                                    <div key={`${x}-${y}`} className={`absolute transition-all ${tile === 1 ? 'bg-purple-950' : 'bg-purple-900/40'}`} style={{ left: x * TILE_SIZE, top: y * TILE_SIZE, width: TILE_SIZE, height: TILE_SIZE }}>
+                                        {tile === 0 && <>
+                                            {player.x === x && player.y === y && <div className="absolute inset-0 flex items-center justify-center text-2xl animate-pulse">{selectedCharacter.emoji}</div>}
+                                            {enemies.find(e => e.x === x && e.y === y) && <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                                <div className="text-xl">{enemies.find(e => e.x === x && e.y === y).emoji}</div>
+                                                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-700 rounded-full"><div className="h-full bg-red-500 rounded-full transition-all" style={{ width: `${(enemies.find(e => e.x === x && e.y === y).hp / enemies.find(e => e.x === x && e.y === y).maxHp) * 100}%` }}/></div>
+                                            </div>}
+                                            {items.find(i => i.x === x && i.y === y) && <div className="absolute inset-0 flex items-center justify-center text-xl animate-bounce">{items.find(i => i.x === x && i.y === y).emoji}</div>}
+                                            {stairs && stairs.x === x && stairs.y === y && <div className="absolute inset-0 flex items-center justify-center text-2xl animate-pulse">🏁</div>}
+                                        </>}
+                                    </div>
+                                )))}
+                            </div>
+                        </div>
+
+                        {/* ステータス */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 mb-4">
+                            <div className="bg-gradient-to-r from-pink-100 to-purple-100 rounded-xl p-3 shadow-md"><div className="flex items-center gap-2 text-pink-600 mb-1"><span className="text-xl">❤️</span><span className="text-sm font-bold">HP</span></div><p className="text-2xl font-bold text-gray-800">{player.hp}/{player.maxHp}</p><div className="w-full bg-gray-300 rounded-full h-2 mt-1"><div className="bg-gradient-to-r from-pink-400 to-pink-600 h-2 rounded-full transition-all" style={{ width: `${(player.hp / player.maxHp) * 100}%` }}/></div></div>
+                            <div className="bg-gradient-to-r from-orange-100 to-yellow-100 rounded-xl p-3 shadow-md"><div className="flex items-center gap-2 text-orange-600 mb-1"><span className="text-xl">⚔️</span><span className="text-sm font-bold">攻撃力</span></div><p className="text-2xl font-bold text-gray-800">{player.attack}</p></div>
+                            <div className="bg-gradient-to-r from-blue-100 to-cyan-100 rounded-xl p-3 shadow-md"><div className="flex items-center gap-2 text-blue-600 mb-1"><span className="text-xl">⭐</span><span className="text-sm font-bold">EXP</span></div><p className="text-2xl font-bold text-gray-800">{player.exp}/{player.expToNext}</p><div className="w-full bg-gray-300 rounded-full h-2 mt-1"><div className="bg-gradient-to-r from-blue-400 to-blue-600 h-2 rounded-full transition-all" style={{ width: `${(player.exp / player.expToNext) * 100}%` }}/></div></div>
+                            <div className="bg-gradient-to-r from-purple-100 to-pink-100 rounded-xl p-3 shadow-md"><div className="flex items-center gap-2 text-purple-600 mb-1"><span className="text-xl">✨</span><span className="text-sm font-bold">スキル</span></div><p className={`text-2xl font-bold ${skillCooldown === 0 ? 'text-green-500' : 'text-gray-800'}`}>{skillCooldown === 0 ? 'Ready!' : `${skillCooldown}ターン`}</p></div>
+                        </div>
+
+                        {/* 操作説明 */}
+                        <div className="text-center text-sm text-gray-500"><p>矢印キー/WASD: 移動 | スペース: {selectedCharacter.skill}使用</p></div>
+
+                        {/* ゲームオーバー画面 */}
+                        {gameState === 'gameOver' && (
+                            <div className="absolute inset-0 bg-black/80 flex items-center justify-center rounded-3xl z-50">
+                                <div className="bg-white rounded-2xl p-8 text-center max-w-md transform scale-100 animate-pulse">
+                                    <h2 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-pink-500 mb-4">Game Over</h2>
+                                    <div className="text-6xl mb-4">😢</div>
+                                    <p className="text-gray-600 mb-2 text-lg">階層 {floor}F で力尽きました...</p>
+                                    <p className="text-gray-600 mb-6 text-lg">{selectedCharacter.name} Lv.{player.level} | 獲得EXP: {player.exp}</p>
+                                    <button onClick={restartGame} className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-8 py-4 rounded-full font-bold hover:scale-105 transition-transform text-lg shadow-lg">もう一度挑戦する！</button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        // --- アプリケーションのレンダリング ---
+        const container = document.getElementById('root');
+        const root = ReactDOM.createRoot(container);
+        root.render(
+            <StrictMode>
+                <MagicalDungeonGirls />
+            </StrictMode>
+        );
+    </script>
+</body>
+</html>

@@ -1,0 +1,1513 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poker Dungeon - ポーカーローグライク</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #0f0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(0, 255, 0, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(0, 100, 255, 0.05) 0%, transparent 50%);
+        }
+
+        #gameContainer {
+            width: 90vw;
+            max-width: 1200px;
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+            border: 2px solid #0f0;
+            background: #000;
+            box-shadow: 0 0 20px #0f0;
+        }
+
+        #titleScreen {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+        }
+
+        #titleScreen h1 {
+            font-size: 4rem;
+            margin-bottom: 2rem;
+            text-shadow: 
+                0 0 10px #0f0,
+                0 0 20px #0f0,
+                0 0 30px #0f0,
+                0 0 40px #0a0;
+            animation: titlePulse 2s ease-in-out infinite;
+            letter-spacing: 0.1em;
+        }
+
+        @keyframes titlePulse {
+            0%, 100% { 
+                transform: scale(1);
+                text-shadow: 
+                    0 0 10px #0f0,
+                    0 0 20px #0f0,
+                    0 0 30px #0f0,
+                    0 0 40px #0a0;
+            }
+            50% { 
+                transform: scale(1.05);
+                text-shadow: 
+                    0 0 20px #0f0,
+                    0 0 30px #0f0,
+                    0 0 40px #0f0,
+                    0 0 50px #0a0;
+            }
+        }
+
+        #titleScreen p {
+            font-size: 1.2rem;
+            color: #0f0;
+            opacity: 0.8;
+            text-shadow: 0 0 5px #0f0;
+        }
+
+        .startButton {
+            padding: 1rem 2rem;
+            font-size: 1.2rem;
+            background: #000;
+            border: 2px solid #0f0;
+            color: #0f0;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+
+        .startButton:hover {
+            background: #0f0;
+            color: #000;
+            box-shadow: 0 0 10px #0f0;
+        }
+
+        #gameScreen {
+            display: none;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+        }
+
+        #statusBar {
+            padding: 10px 15px;
+            border-bottom: 2px solid #0f0;
+            display: flex;
+            justify-content: space-between;
+            background: linear-gradient(90deg, #111 0%, #1a1a2a 50%, #111 100%);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+            flex-wrap: wrap;
+        }
+
+        .status-item {
+            margin: 2px 10px;
+            padding: 5px 8px;
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            border-radius: 5px;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .status-item:hover {
+            background: rgba(0, 255, 0, 0.2);
+            border-color: #0f0;
+            box-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
+        }
+
+        #mainArea {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        #dungeonView {
+            flex: 2;
+            padding: 20px;
+            font-size: 1.4rem;
+            line-height: 1.2;
+            overflow: auto;
+            font-family: 'Courier New', monospace;
+            background: 
+                linear-gradient(135deg, #0a0a0a 0%, #1a1a2a 100%);
+            box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        #dungeonView::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+
+        #dungeonView::-webkit-scrollbar-track {
+            background: #111;
+            border-radius: 6px;
+        }
+
+        #dungeonView::-webkit-scrollbar-thumb {
+            background: #0f0;
+            border-radius: 6px;
+            opacity: 0.5;
+        }
+
+        #dungeonView::-webkit-scrollbar-thumb:hover {
+            opacity: 0.8;
+        }
+
+        #dungeonMap {
+            white-space: pre;
+            letter-spacing: 0.3em;
+            filter: drop-shadow(0 0 2px rgba(0, 255, 0, 0.3));
+        }
+
+        .tile {
+            display: inline-block;
+            width: 1.4em;
+            height: 1.4em;
+            text-align: center;
+            line-height: 1.4em;
+            position: relative;
+        }
+
+        .player { 
+            color: #fff; 
+            font-weight: bold;
+            text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #fff;
+            animation: playerGlow 1s ease-in-out infinite alternate;
+        }
+
+        @keyframes playerGlow {
+            from { filter: brightness(1) drop-shadow(0 0 5px #fff); }
+            to { filter: brightness(1.3) drop-shadow(0 0 10px #fff); }
+        }
+
+        .wall { 
+            color: #4a4a6a;
+            text-shadow: 2px 2px 4px #000;
+            background: linear-gradient(135deg, #2a2a3a 0%, #1a1a2a 100%);
+            border-radius: 2px;
+        }
+
+        .floor { 
+            color: #2a2a3a;
+            opacity: 0.6;
+        }
+
+        .floor.discovered {
+            opacity: 0.3;
+        }
+
+        .enemy { 
+            color: #ff4444;
+            font-weight: bold;
+            text-shadow: 0 0 5px #ff0000, 0 0 10px #ff0000;
+            animation: enemyPulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes enemyPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .item { 
+            color: #ffd700;
+            text-shadow: 0 0 5px #ffd700, 0 0 10px #ffa500;
+            animation: itemFloat 2s ease-in-out infinite;
+        }
+
+        @keyframes itemFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-3px); }
+        }
+
+        .stairs { 
+            color: #00ffff;
+            font-weight: bold;
+            text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff;
+            animation: stairsRotate 3s linear infinite;
+        }
+
+        @keyframes stairsRotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .door { 
+            color: #ff8800;
+            text-shadow: 0 0 5px #ff8800;
+        }
+
+        .chest { 
+            color: #ff00ff;
+            text-shadow: 0 0 5px #ff00ff, 0 0 10px #ff00ff;
+            animation: chestGlow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes chestGlow {
+            from { filter: brightness(1); }
+            to { filter: brightness(1.5); }
+        }
+
+        .fog {
+            color: #1a1a2a;
+            opacity: 0.2;
+        }
+
+        #sidebar {
+            flex: 1;
+            border-left: 2px solid #0f0;
+            padding: 20px;
+            background: linear-gradient(180deg, #111 0%, #0a0a0a 100%);
+            overflow-y: auto;
+            box-shadow: inset 5px 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        #sidebar h3 {
+            color: #0f0;
+            text-shadow: 0 0 5px #0f0;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #0f0;
+        }
+
+        #playerStats p {
+            margin: 8px 0;
+            padding: 5px;
+            background: rgba(0, 255, 0, 0.05);
+            border-left: 3px solid #0f0;
+            padding-left: 10px;
+        }
+
+        #inventory {
+            margin-top: 20px;
+            border-top: 1px solid #0f0;
+            padding-top: 20px;
+        }
+
+        .inventory-item {
+            padding: 5px;
+            margin: 5px 0;
+            border: 1px solid #333;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .inventory-item:hover {
+            border-color: #0f0;
+            background: #1a1a1a;
+        }
+
+        #messageLog {
+            height: 150px;
+            border-top: 2px solid #0f0;
+            padding: 15px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+            background: linear-gradient(180deg, #0a0a0a 0%, #111 100%);
+            box-shadow: inset 0 5px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        #messageLog::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #messageLog::-webkit-scrollbar-track {
+            background: #111;
+        }
+
+        #messageLog::-webkit-scrollbar-thumb {
+            background: #0f0;
+            border-radius: 4px;
+        }
+
+        .message {
+            margin: 4px 0;
+            padding: 4px 8px;
+            opacity: 0.7;
+            border-left: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .message:hover {
+            opacity: 1;
+            background: rgba(0, 255, 0, 0.05);
+            border-left-color: #0f0;
+        }
+
+        .message.important {
+            color: #ffd700;
+            font-weight: bold;
+            opacity: 1;
+            text-shadow: 0 0 5px #ffd700;
+            border-left-color: #ffd700;
+        }
+
+        .message.battle-hand {
+            color: #fff;
+            font-weight: bold;
+            opacity: 1;
+            font-size: 1.1rem;
+            padding: 8px 12px;
+            margin: 8px 0;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
+            border-left: 4px solid #667eea;
+            border-radius: 5px;
+            text-shadow: 0 0 10px rgba(102, 126, 234, 0.8);
+        }
+
+        .message.damage {
+            color: #ff4444;
+            font-weight: bold;
+            opacity: 1;
+            text-shadow: 0 0 10px #ff0000;
+            border-left-color: #ff4444;
+            animation: damageFlash 0.5s ease;
+        }
+
+        @keyframes damageFlash {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .card-display {
+            display: inline-block;
+            padding: 2px 6px;
+            margin: 0 2px;
+            background: #1a1a2a;
+            border: 2px solid #444;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .card-display.red {
+            color: #ff6666;
+            border-color: #ff4444;
+            text-shadow: 0 0 5px #ff0000;
+            background: linear-gradient(135deg, rgba(255, 68, 68, 0.1) 0%, rgba(255, 102, 102, 0.1) 100%);
+        }
+
+        .card-display.black {
+            color: #cccccc;
+            border-color: #888;
+            text-shadow: 0 0 5px #fff;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(200, 200, 200, 0.1) 100%);
+        }
+
+        .hand-name {
+            display: inline-block;
+            padding: 4px 12px;
+            margin: 0 8px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border-radius: 20px;
+            font-weight: bold;
+            color: #fff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.6);
+            animation: handGlow 1s ease-in-out;
+        }
+
+        @keyframes handGlow {
+            0% { transform: scale(1); box-shadow: 0 0 20px rgba(102, 126, 234, 0.6); }
+            50% { transform: scale(1.1); box-shadow: 0 0 30px rgba(102, 126, 234, 0.9); }
+            100% { transform: scale(1); box-shadow: 0 0 20px rgba(102, 126, 234, 0.6); }
+        }
+
+        .hand-name.high-value {
+            background: linear-gradient(45deg, #f093fb, #f5576c);
+            box-shadow: 0 0 30px rgba(240, 147, 251, 0.8);
+        }
+
+        .hand-name.epic {
+            background: linear-gradient(45deg, #667eea, #764ba2, #f093fb);
+            animation: epicGlow 1s ease-in-out infinite alternate;
+        }
+
+        @keyframes epicGlow {
+            0% { box-shadow: 0 0 20px rgba(102, 126, 234, 0.8); filter: brightness(1); }
+            100% { box-shadow: 0 0 40px rgba(240, 147, 251, 1); filter: brightness(1.2); }
+        }
+
+        .damage-number-display {
+            display: inline-block;
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #ffd700;
+            text-shadow: 0 0 10px #ffd700, 0 0 20px #ff8800;
+            animation: damageNumber 0.8s ease;
+        }
+
+        @keyframes damageNumber {
+            0% { transform: scale(1.5); opacity: 0; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .message.exp-gain {
+            color: #00ffff;
+            font-weight: bold;
+            opacity: 1;
+            border-left-color: #00ffff;
+        }
+
+        .message.gold-gain {
+            color: #ffd700;
+            font-weight: bold;
+            opacity: 1;
+            border-left-color: #ffd700;
+        }
+
+        #controls {
+            padding: 15px;
+            border-top: 2px solid #0f0;
+            text-align: center;
+            background: linear-gradient(90deg, #111 0%, #1a1a2a 50%, #111 100%);
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .control-hint {
+            margin: 0 10px;
+            padding: 5px 10px;
+            opacity: 0.7;
+            background: rgba(0, 255, 0, 0.05);
+            border-radius: 5px;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+
+        .control-hint:hover {
+            opacity: 1;
+            background: rgba(0, 255, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        #gameOver {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #000;
+            border: 3px solid #f00;
+            padding: 50px;
+            text-align: center;
+            z-index: 2000;
+            box-shadow: 0 0 30px #f00;
+        }
+
+        #gameOver h2 {
+            color: #f00;
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+        
+        #touchControls {
+            display: none;
+            position: fixed;
+            bottom: 10px;
+            width: 100%;
+            padding: 0 20px;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        #touchControls > div {
+            pointer-events: auto;
+        }
+
+        .dpad {
+            display: grid;
+            grid-template-areas:
+                ". up ."
+                "left . right"
+                ". down .";
+            gap: 8px;
+        }
+        
+        .dpad-btn-up { grid-area: up; }
+        .dpad-btn-left { grid-area: left; }
+        .dpad-btn-right { grid-area: right; }
+        .dpad-btn-down { grid-area: down; }
+
+
+        .touch-btn {
+            width: 55px;
+            height: 55px;
+            font-size: 1.5rem;
+            background: rgba(0, 255, 0, 0.15);
+            border: 2px solid #0f0;
+            color: #0f0;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+            border-radius: 50%;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        .touch-btn:active {
+            background: #0f0;
+            color: #000;
+            transform: scale(0.95);
+        }
+        
+        .action-btn {
+            width: 80px;
+            height: 80px;
+            font-size: 1.2rem;
+        }
+
+        /* Responsive Styles */
+        @media (max-width: 768px) {
+            #gameContainer {
+                width: 100vw;
+                height: 100vh;
+                border: none;
+                box-shadow: none;
+            }
+
+            #titleScreen h1 {
+                font-size: 2.5rem;
+            }
+
+            #mainArea {
+                flex-direction: column;
+            }
+
+            #dungeonView {
+                font-size: 0.9rem; /* Smaller font for mobile */
+                flex-grow: 1;
+            }
+
+            #sidebar {
+                flex-basis: 45%; /* Sidebar takes 45% of the height */
+                flex-grow: 0;
+                flex-shrink: 0;
+                border-left: none;
+                border-top: 2px solid #0f0;
+                overflow-y: auto;
+            }
+
+            #controls {
+                display: none; /* Hide desktop controls */
+            }
+
+            #touchControls {
+                display: flex; /* Show mobile controls */
+            }
+
+            #gameOver {
+                 width: 90vw;
+                 padding: 20px;
+                 min-width: 0;
+            }
+
+            #gameOver h2 {
+                font-size: 2rem;
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="titleScreen">
+            <h1>POKER DUNGEON</h1>
+            <p style="margin-bottom: 2rem; opacity: 0.8;">ポーカーの役で戦うローグライクダンジョン</p>
+            <button class="startButton" onclick="startGame()">[ ENTER THE DUNGEON ]</button>
+            <div style="margin-top: 3rem; opacity: 0.6;">
+                <p>移動: W,A,S,D または 矢印キー</p>
+                <p>待機: Space</p>
+                <p>アイテム使用: 1-9</p>
+                <p>敵にぶつかると自動でカードバトル！</p>
+            </div>
+        </div>
+
+        <div id="gameScreen">
+            <div id="statusBar">
+                <div>
+                    <span class="status-item">階層: <span id="floor">1</span></span>
+                    <span class="status-item">HP: <span id="hp">100/100</span></span>
+                    <span class="status-item">攻撃: <span id="attack">10</span></span>
+                    <span class="status-item">防御: <span id="defense">5</span></span>
+                </div>
+                <div>
+                    <span class="status-item">ターン: <span id="turn">0</span></span>
+                    <span class="status-item">スコア: <span id="score">0</span></span>
+                </div>
+            </div>
+
+            <div id="mainArea">
+                <div id="dungeonView">
+                    <pre id="dungeonMap"></pre>
+                </div>
+                <div id="sidebar">
+                    <h3>ステータス</h3>
+                    <div id="playerStats">
+                        <p>レベル: <span id="level">1</span></p>
+                        <p>経験値: <span id="exp">0/100</span></p>
+                        <p>所持金: <span id="gold">0</span>G</p>
+                        <p>カード枚数: <span id="cardDraw">5</span></p>
+                    </div>
+
+                    <div id="inventory">
+                        <h3>インベントリ</h3>
+                        <div id="inventoryList"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="messageLog"></div>
+
+            <div id="controls">
+                <span class="control-hint">[W/A/S/D] 移動</span>
+                <span class="control-hint">[Space] 待機</span>
+                <span class="control-hint">[1-9] アイテム使用</span>
+                <span class="control-hint">[I] インベントリ</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Touch Controls for Mobile -->
+    <div id="touchControls">
+        <div class="dpad">
+            <button id="dpad-up" class="touch-btn dpad-btn-up">▲</button>
+            <button id="dpad-left" class="touch-btn dpad-btn-left">◀</button>
+            <button id="dpad-right" class="touch-btn dpad-btn-right">▶</button>
+            <button id="dpad-down" class="touch-btn dpad-btn-down">▼</button>
+        </div>
+        <div class="action-btns">
+            <button id="action-wait" class="touch-btn action-btn">待機</button>
+        </div>
+    </div>
+
+    <div id="gameOver">
+        <h2>GAME OVER</h2>
+        <p id="deathCause" style="margin-bottom: 20px;"></p>
+        <p>最終スコア: <span id="finalScore">0</span></p>
+        <p>到達階層: <span id="finalFloor">1</span></p>
+        <button class="startButton" onclick="location.reload()">[ RETRY ]</button>
+    </div>
+
+    <script>
+        // ゲーム定数
+        const DUNGEON_WIDTH = 50;
+        const DUNGEON_HEIGHT = 25;
+        const ROOM_MIN_SIZE = 4;
+        const ROOM_MAX_SIZE = 10;
+        const MAX_ROOMS = 8;
+        const VIEW_DISTANCE = 8;
+
+        // タイルタイプ
+        const TILES = {
+            WALL: '█',
+            FLOOR: '·',
+            PLAYER: '◎',
+            ENEMY: '☠',
+            ITEM: '✦',
+            STAIRS: '▼',
+            DOOR: '▬',
+            CHEST: '⬚',
+            EMPTY: ' ',
+            FOG: '░'
+        };
+
+        // ゲーム状態
+        let gameState = {
+            dungeon: [],
+            discovered: [],
+            player: {
+                x: 0,
+                y: 0,
+                hp: 100,
+                maxHp: 100,
+                attack: 10,
+                defense: 5,
+                level: 1,
+                exp: 0,
+                expToNext: 100,
+                gold: 0,
+                cardDraw: 5,
+                inventory: []
+            },
+            enemies: [],
+            items: [],
+            floor: 1,
+            turn: 0,
+            score: 0,
+            messages: [],
+            hand: [],
+            selectedCards: []
+        };
+
+        // 敵のタイプ
+        const enemyTypes = [
+            { name: 'ゴブリン', symbol: '👺', hp: 20, attack: 8, defense: 2, exp: 20, gold: 10 },
+            { name: 'オーク', symbol: '👹', hp: 30, attack: 12, defense: 4, exp: 30, gold: 20 },
+            { name: 'スライム', symbol: '🟢', hp: 15, attack: 6, defense: 1, exp: 15, gold: 5 },
+            { name: 'スケルトン', symbol: '💀', hp: 25, attack: 10, defense: 3, exp: 25, gold: 15 },
+            { name: 'コボルド', symbol: '👽', hp: 18, attack: 9, defense: 2, exp: 18, gold: 12 },
+            { name: 'ゾンビ', symbol: '🧟', hp: 35, attack: 8, defense: 5, exp: 35, gold: 18 },
+            { name: 'バット', symbol: '🦇', hp: 10, attack: 5, defense: 1, exp: 10, gold: 3 }
+        ];
+
+        // アイテムタイプ
+        const itemTypes = [
+            { name: 'ポーション', symbol: '🧪', color: '#ff4444', effect: 'heal', value: 30 },
+            { name: '力の薬', symbol: '💪', color: '#ffaa00', effect: 'attack', value: 2 },
+            { name: '守りの薬', symbol: '🛡️', color: '#4444ff', effect: 'defense', value: 2 },
+            { name: 'カード補充', symbol: '🎴', color: '#ff00ff', effect: 'cards', value: 2 },
+            { name: '経験値の書', symbol: '📜', color: '#00ffff', effect: 'exp', value: 50 }
+        ];
+
+        // ダンジョン生成
+        function generateDungeon() {
+            // 初期化
+            gameState.dungeon = [];
+            gameState.discovered = [];
+            gameState.enemies = [];
+            gameState.items = [];
+            
+            for (let y = 0; y < DUNGEON_HEIGHT; y++) {
+                gameState.dungeon[y] = [];
+                gameState.discovered[y] = [];
+                for (let x = 0; x < DUNGEON_WIDTH; x++) {
+                    gameState.dungeon[y][x] = TILES.WALL;
+                    gameState.discovered[y][x] = false;
+                }
+            }
+
+            // 部屋を生成
+            const rooms = [];
+            for (let i = 0; i < MAX_ROOMS; i++) {
+                const room = {
+                    x: Math.floor(Math.random() * (DUNGEON_WIDTH - ROOM_MAX_SIZE - 2)) + 1,
+                    y: Math.floor(Math.random() * (DUNGEON_HEIGHT - ROOM_MAX_SIZE - 2)) + 1,
+                    width: Math.floor(Math.random() * (ROOM_MAX_SIZE - ROOM_MIN_SIZE)) + ROOM_MIN_SIZE,
+                    height: Math.floor(Math.random() * (ROOM_MAX_SIZE - ROOM_MIN_SIZE)) + ROOM_MIN_SIZE
+                };
+
+                // 部屋が重ならないかチェック
+                let overlap = false;
+                for (const other of rooms) {
+                    if (room.x < other.x + other.width + 2 &&
+                        room.x + room.width + 2 > other.x &&
+                        room.y < other.y + other.height + 2 &&
+                        room.y + room.height + 2 > other.y) {
+                        overlap = true;
+                        break;
+                    }
+                }
+
+                if (!overlap) {
+                    rooms.push(room);
+                    // 部屋を掘る
+                    for (let y = room.y; y < room.y + room.height; y++) {
+                        for (let x = room.x; x < room.x + room.width; x++) {
+                            gameState.dungeon[y][x] = TILES.FLOOR;
+                        }
+                    }
+                }
+            }
+
+            // 部屋を通路で接続
+            for (let i = 0; i < rooms.length - 1; i++) {
+                const room1 = rooms[i];
+                const room2 = rooms[i + 1];
+                const center1 = {
+                    x: Math.floor(room1.x + room1.width / 2),
+                    y: Math.floor(room1.y + room1.height / 2)
+                };
+                const center2 = {
+                    x: Math.floor(room2.x + room2.width / 2),
+                    y: Math.floor(room2.y + room2.height / 2)
+                };
+
+                // L字型の通路を作る
+                if (Math.random() < 0.5) {
+                    // 横→縦
+                    for (let x = Math.min(center1.x, center2.x); x <= Math.max(center1.x, center2.x); x++) {
+                        gameState.dungeon[center1.y][x] = TILES.FLOOR;
+                    }
+                    for (let y = Math.min(center1.y, center2.y); y <= Math.max(center1.y, center2.y); y++) {
+                        gameState.dungeon[y][center2.x] = TILES.FLOOR;
+                    }
+                } else {
+                    // 縦→横
+                    for (let y = Math.min(center1.y, center2.y); y <= Math.max(center1.y, center2.y); y++) {
+                        gameState.dungeon[y][center1.x] = TILES.FLOOR;
+                    }
+                    for (let x = Math.min(center1.x, center2.x); x <= Math.max(center1.x, center2.x); x++) {
+                        gameState.dungeon[center2.y][x] = TILES.FLOOR;
+                    }
+                }
+            }
+
+            // プレイヤーを最初の部屋に配置
+            if (rooms.length > 0) {
+                const startRoom = rooms[0];
+                gameState.player.x = Math.floor(startRoom.x + startRoom.width / 2);
+                gameState.player.y = Math.floor(startRoom.y + startRoom.height / 2);
+            }
+
+            // 階段を最後の部屋に配置
+            if (rooms.length > 1) {
+                const endRoom = rooms[rooms.length - 1];
+                const stairX = Math.floor(endRoom.x + endRoom.width / 2);
+                const stairY = Math.floor(endRoom.y + endRoom.height / 2);
+                gameState.dungeon[stairY][stairX] = TILES.STAIRS;
+            }
+
+            // 敵を配置
+            const enemyCount = 5 + gameState.floor * 2;
+            for (let i = 0; i < enemyCount; i++) {
+                const room = rooms[Math.floor(Math.random() * rooms.length)];
+                const x = room.x + Math.floor(Math.random() * room.width);
+                const y = room.y + Math.floor(Math.random() * room.height);
+                
+                if (gameState.dungeon[y][x] === TILES.FLOOR && 
+                    !(x === gameState.player.x && y === gameState.player.y)) {
+                    const enemyType = enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
+                    gameState.enemies.push({
+                        x, y,
+                        ...enemyType,
+                        hp: enemyType.hp + gameState.floor * 5,
+                        maxHp: enemyType.hp + gameState.floor * 5,
+                        attack: enemyType.attack + gameState.floor * 2,
+                        defense: enemyType.defense + Math.floor(gameState.floor / 2)
+                    });
+                }
+            }
+
+            // アイテムを配置
+            const itemCount = 3 + Math.floor(gameState.floor / 2);
+            for (let i = 0; i < itemCount; i++) {
+                const room = rooms[Math.floor(Math.random() * rooms.length)];
+                const x = room.x + Math.floor(Math.random() * room.width);
+                const y = room.y + Math.floor(Math.random() * room.height);
+                
+                if (gameState.dungeon[y][x] === TILES.FLOOR && 
+                    !(x === gameState.player.x && y === gameState.player.y) &&
+                    !gameState.enemies.find(e => e.x === x && e.y === y)) {
+                    const itemType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
+                    gameState.items.push({ x, y, ...itemType });
+                }
+            }
+        }
+
+        // 視界計算（レイキャスティング）
+        function updateVisibility() {
+            const px = gameState.player.x;
+            const py = gameState.player.y;
+            
+            // プレイヤーの位置は常に見える
+            gameState.discovered[py][px] = true;
+            
+            // 8方向にレイキャストを行う
+            const numRays = 360;
+            for (let i = 0; i < numRays; i++) {
+                const angle = (i / numRays) * Math.PI * 2;
+                const dx = Math.cos(angle);
+                const dy = Math.sin(angle);
+                
+                for (let distance = 0; distance <= VIEW_DISTANCE; distance += 0.5) {
+                    const x = Math.round(px + dx * distance);
+                    const y = Math.round(py + dy * distance);
+                    
+                    if (x < 0 || x >= DUNGEON_WIDTH || y < 0 || y >= DUNGEON_HEIGHT) break;
+                    
+                    gameState.discovered[y][x] = true;
+                    
+                    // 壁に当たったら、そこでレイを止める
+                    if (gameState.dungeon[y][x] === TILES.WALL) break;
+                }
+            }
+        }
+
+        // ダンジョン描画
+        function renderDungeon() {
+            updateVisibility();
+            let dungeonHTML = '';
+            
+            const px = gameState.player.x;
+            const py = gameState.player.y;
+            
+            for (let y = 0; y < DUNGEON_HEIGHT; y++) {
+                for (let x = 0; x < DUNGEON_WIDTH; x++) {
+                    let tile = TILES.EMPTY;
+                    let className = '';
+                    
+                    const distance = Math.sqrt((x - px) ** 2 + (y - py) ** 2);
+                    const isVisible = distance <= VIEW_DISTANCE;
+                    const isDiscovered = gameState.discovered[y][x];
+                    
+                    if (!isDiscovered && !isVisible) {
+                        dungeonHTML += '<span class="tile fog">░</span>';
+                        continue;
+                    }
+                    
+                    // プレイヤー
+                    if (x === gameState.player.x && y === gameState.player.y) {
+                        tile = TILES.PLAYER;
+                        className = 'player';
+                    }
+                    // 視界内の敵
+                    else if (isVisible && gameState.enemies.find(e => e.x === x && e.y === y)) {
+                        const enemy = gameState.enemies.find(e => e.x === x && e.y === y);
+                        tile = enemy.symbol;
+                        className = 'enemy';
+                    }
+                    // 視界内のアイテム
+                    else if (isVisible && gameState.items.find(i => i.x === x && i.y === y)) {
+                        const item = gameState.items.find(i => i.x === x && i.y === y);
+                        tile = item.symbol;
+                        className = 'item';
+                    }
+                    // 地形
+                    else {
+                        tile = gameState.dungeon[y][x];
+                        switch (tile) {
+                            case TILES.WALL: 
+                                className = 'wall'; 
+                                break;
+                            case TILES.FLOOR: 
+                                className = isVisible ? 'floor' : 'floor discovered'; 
+                                break;
+                            case TILES.STAIRS: 
+                                className = 'stairs'; 
+                                break;
+                            case TILES.DOOR: 
+                                className = 'door'; 
+                                break;
+                            case TILES.CHEST: 
+                                className = 'chest'; 
+                                break;
+                        }
+                    }
+                    
+                    // 視界外の場合は暗くする
+                    if (!isVisible && isDiscovered) {
+                        tile = gameState.dungeon[y][x];
+                        if (tile === TILES.FLOOR) tile = '·';
+                    }
+                    
+                    dungeonHTML += `<span class="tile ${className}">${tile}</span>`;
+                }
+                dungeonHTML += '\n';
+            }
+            
+            document.getElementById('dungeonMap').innerHTML = dungeonHTML;
+            
+            // プレイヤー位置までスクロール
+            scrollToPlayer();
+        }
+
+        // プレイヤー位置までスクロール
+        function scrollToPlayer() {
+            const dungeonView = document.getElementById('dungeonView');
+            
+            // 実際の文字サイズを取得
+            const computedStyle = window.getComputedStyle(dungeonView);
+            const fontSize = parseFloat(computedStyle.fontSize);
+            const lineHeight = parseFloat(computedStyle.lineHeight);
+            
+            // タイルのサイズ（1.4em幅）
+            const charWidth = fontSize * 1.4;
+            const charHeight = lineHeight;
+            
+            // プレイヤーの画面上のの位置を計算
+            const playerScreenX = gameState.player.x * charWidth;
+            const playerScreenY = gameState.player.y * charHeight;
+            
+            // ビューポートの中心にプレイヤーを配置
+            const viewWidth = dungeonView.clientWidth;
+            const viewHeight = dungeonView.clientHeight;
+            
+            // パディングを考慮
+            const padding = parseFloat(computedStyle.paddingLeft);
+            
+            dungeonView.scrollLeft = playerScreenX - viewWidth / 2 + charWidth / 2 - padding;
+            dungeonView.scrollTop = playerScreenY - viewHeight / 2 + charHeight / 2 - padding;
+        }
+
+        // プレイヤー移動
+        function movePlayer(dx, dy) {
+            const newX = gameState.player.x + dx;
+            const newY = gameState.player.y + dy;
+            
+            // 範囲チェック
+            if (newX < 0 || newX >= DUNGEON_WIDTH || newY < 0 || newY >= DUNGEON_HEIGHT) {
+                return;
+            }
+            
+            // 壁チェック
+            if (gameState.dungeon[newY][newX] === TILES.WALL) {
+                addMessage('壁にぶつかった。');
+                return;
+            }
+            
+            // 敵チェック
+            const enemy = gameState.enemies.find(e => e.x === newX && e.y === newY);
+            if (enemy) {
+                autoAttackEnemy(enemy);
+                return;
+            }
+            
+            // 移動実行
+            gameState.player.x = newX;
+            gameState.player.y = newY;
+            gameState.turn++;
+            
+            // アイテムチェック
+            const itemIndex = gameState.items.findIndex(i => i.x === newX && i.y === newY);
+            if (itemIndex !== -1) {
+                const item = gameState.items[itemIndex];
+                pickupItem(item);
+                gameState.items.splice(itemIndex, 1);
+            }
+            
+            // 階段チェック
+            if (gameState.dungeon[newY][newX] === TILES.STAIRS) {
+                nextFloor();
+            }
+            
+            // 敵のターン
+            enemyTurn();
+            
+            updateUI();
+            renderDungeon();
+        }
+
+        // アイテム取得
+        function pickupItem(item) {
+            if (gameState.player.inventory.length < 9) {
+                gameState.player.inventory.push(item);
+                addMessage(`${item.symbol} ${item.name}を拾った！`, true);
+            } else {
+                addMessage('インベントリがいっぱいだ！');
+            }
+        }
+
+        // アイテム使用
+        function useItem(index) {
+            if (index >= gameState.player.inventory.length) return;
+            
+            const item = gameState.player.inventory[index];
+            let used = false;
+            
+            switch (item.effect) {
+                case 'heal':
+                    if (gameState.player.hp < gameState.player.maxHp) {
+                        gameState.player.hp = Math.min(gameState.player.hp + item.value, gameState.player.maxHp);
+                        addMessage(`HPが${item.value}回復した！`, true);
+                        used = true;
+                    } else {
+                        addMessage('HPは満タンだ。');
+                    }
+                    break;
+                case 'attack':
+                    gameState.player.attack += item.value;
+                    addMessage(`攻撃力が${item.value}上がった！`, true);
+                    used = true;
+                    break;
+                case 'defense':
+                    gameState.player.defense += item.value;
+                    addMessage(`防御力が${item.value}上がった！`, true);
+                    used = true;
+                    break;
+                case 'cards':
+                    gameState.player.cardDraw += item.value;
+                    addMessage(`カード枚数が${item.value}増えた！`, true);
+                    used = true;
+                    break;
+                case 'exp':
+                    gainExp(item.value);
+                    used = true;
+                    break;
+            }
+            
+            if (used) {
+                gameState.player.inventory.splice(index, 1);
+                updateUI();
+            }
+        }
+
+        // 経験値獲得
+        function gainExp(amount) {
+            gameState.player.exp += amount;
+            addMessage(`<span style="color: #00ffff; text-shadow: 0 0 5px #00ffff;">+${amount} EXP</span>`, false, 'exp-gain');
+            
+            while (gameState.player.exp >= gameState.player.expToNext) {
+                gameState.player.exp -= gameState.player.expToNext;
+                gameState.player.level++;
+                gameState.player.expToNext = gameState.player.level * 100;
+                gameState.player.maxHp += 20;
+                gameState.player.hp += 20;
+                gameState.player.attack += 3;
+                gameState.player.defense += 2;
+                addMessage(`🎉 レベルアップ！ Lv.${gameState.player.level}になった！ 🎉`, true);
+            }
+        }
+
+        // 敵のターン
+        function enemyTurn() {
+            const enemiesThisTurn = [...gameState.enemies];
+            for (const enemy of enemiesThisTurn) {
+                if (gameState.player.hp <= 0) return;
+                if (!gameState.enemies.includes(enemy)) continue;
+
+                const distanceX = Math.abs(gameState.player.x - enemy.x);
+                const distanceY = Math.abs(gameState.player.y - enemy.y);
+
+                // 攻撃範囲チェック (隣接しているか)
+                if (distanceX <= 1 && distanceY <= 1 && (distanceX > 0 || distanceY > 0)) {
+                    const enemyDamage = Math.max(enemy.attack - gameState.player.defense, 1);
+                    gameState.player.hp -= enemyDamage;
+                    addMessage(`${enemy.name}から <span class="damage-number-display" style="color: #ff4444; text-shadow: 0 0 10px #ff0000;">${enemyDamage}</span> のダメージを受けた！`, false, 'damage');
+                    
+                    if (gameState.player.hp <= 0) {
+                        updateUI();
+                        gameOver(`${enemy.name}に倒された...`);
+                        return;
+                    }
+                } 
+                // 追跡範囲チェック
+                else {
+                    const distance = distanceX + distanceY;
+                    if (distance <= 5 && distance > 1) {
+                        let dx = Math.sign(gameState.player.x - enemy.x);
+                        let dy = Math.sign(gameState.player.y - enemy.y);
+                        
+                        if (dx !== 0 && dy !== 0) {
+                            if (Math.random() < 0.5) {
+                                if (gameState.dungeon[enemy.y][enemy.x + dx] !== TILES.FLOOR) dx = 0;
+                            } else {
+                                if (gameState.dungeon[enemy.y + dy][enemy.x] !== TILES.FLOOR) dy = 0;
+                            }
+                        }
+
+                        const newX = enemy.x + dx;
+                        const newY = enemy.y + dy;
+                        
+                        const isTargetOccupied = gameState.enemies.some(e => e.x === newX && e.y === newY) || (gameState.player.x === newX && gameState.player.y === newY);
+
+                        if (gameState.dungeon[newY]?.[newX] === TILES.FLOOR && !isTargetOccupied) {
+                            enemy.x = newX;
+                            enemy.y = newY;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 自動攻撃
+        function autoAttackEnemy(enemy) {
+            // カードを自動で引く
+            const suits = ['♠', '♥', '♦', '♣'];
+            const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+            
+            gameState.hand = [];
+            for (let i = 0; i < gameState.player.cardDraw; i++) {
+                const suit = suits[Math.floor(Math.random() * suits.length)];
+                const rank = ranks[Math.floor(Math.random() * ranks.length)];
+                gameState.hand.push({ suit, rank });
+            }
+            
+            // 手札を評価
+            const handValue = evaluateHandAuto();
+            
+            // ダメージ計算
+            const damage = Math.floor(gameState.player.attack * handValue.multiplier - enemy.defense);
+            const actualDamage = Math.max(damage, 1);
+            
+            enemy.hp -= actualDamage;
+            
+            // カードの内容を鮮やかに表示
+            const cardDisplay = gameState.hand.map(c => {
+                const isRed = c.suit === '♥' || c.suit === '♦';
+                const colorClass = isRed ? 'red' : 'black';
+                return `<span class="card-display ${colorClass}">${c.rank}${c.suit}</span>`;
+            }).join(' ');
+            
+            // 役の価値に応じてクラスを設定
+            let handClass = 'hand-name';
+            if (handValue.multiplier >= 7) {
+                handClass += ' epic';
+            } else if (handValue.multiplier >= 5) {
+                handClass += ' high-value';
+            }
+            
+            const handDisplay = `<span class="${handClass}">${handValue.name}</span>`;
+            
+            addMessage(`${cardDisplay} → ${handDisplay}`, false, 'battle-hand');
+            addMessage(`${enemy.name}に <span class="damage-number-display">${actualDamage}</span> ダメージ！`, false, 'damage');
+            
+            // 特別な役の場合は特殊メッセージ
+            if (handValue.multiplier >= 8) {
+                addMessage(`🌟🌟🌟 ${handValue.name.toUpperCase()}!!! 🌟🌟🌟`, true);
+            }
+
+            if (enemy.hp <= 0) {
+                // 敵を倒した
+                addMessage(`✨ ${enemy.name}を倒した！ ✨`, true);
+                gainExp(enemy.exp);
+                gameState.player.gold += enemy.gold;
+                addMessage(`<span style="color: #ffd700; text-shadow: 0 0 5px #ffd700;">+${enemy.gold} Gold</span>`, false, 'gold-gain');
+                gameState.score += enemy.exp * gameState.floor;
+                
+                // 敵を削除
+                const index = gameState.enemies.indexOf(enemy);
+                gameState.enemies.splice(index, 1);
+            }
+            
+            gameState.turn++;
+            enemyTurn();
+            updateUI();
+            renderDungeon();
+        }
+
+        // 自動手札評価
+        function evaluateHandAuto() {
+            const hand = gameState.hand;
+            const rankCounts = {};
+            const suitCounts = {};
+            
+            hand.forEach(card => {
+                rankCounts[card.rank] = (rankCounts[card.rank] || 0) + 1;
+                suitCounts[card.suit] = (suitCounts[card.suit] || 0) + 1;
+            });
+            
+            const counts = Object.values(rankCounts).sort((a, b) => b - a);
+            const isFlush = Object.values(suitCounts).some(count => count >= 5);
+            
+            let handValue = { name: 'ハイカード', multiplier: 1 };
+            
+            // ストレート判定のヘルパー関数
+            const isStraight = () => {
+                const rankValues = {
+                    'A': [1, 14], '2': 2, '3': 3, '4': 4, '5': 5,
+                    '6': 6, '7': 7, '8': 8, '9': 9, '10': 10,
+                    'J': 11, 'Q': 12, 'K': 13
+                };
+                
+                const values = hand.map(card => {
+                    const val = rankValues[card.rank];
+                    return Array.isArray(val) ? val[1] : val; // Aは14として扱う
+                }).sort((a, b) => a - b);
+                
+                // 通常のストレート
+                let isConsecutive = true;
+                for (let i = 1; i < values.length; i++) {
+                    if (values[i] - values[i-1] !== 1) {
+                        isConsecutive = false;
+                        break;
+                    }
+                }
+                
+                // A-2-3-4-5のストレート
+                if (!isConsecutive && values.length === 5 && values[4] === 14 && values[0] === 2 && values[1] === 3 && values[2] === 4 && values[3] === 5) {
+                     isConsecutive = true;
+                } else if (!isConsecutive && hand.length === 5) {
+                    const lowAceValues = hand.map(card => rankValues[card.rank] === 14 ? 1 : rankValues[card.rank]).sort((a, b) => a - b);
+                    isConsecutive = lowAceValues.every((val, i) => i === 0 || val === lowAceValues[i-1] + 1);
+                }
+                
+                return isConsecutive;
+            };
+            
+            // ロイヤルフラッシュとストレートフラッシュの判定
+            const isRoyalFlush = isFlush && isStraight() && 
+                hand.some(c => c.rank === 'A') && 
+                hand.some(c => c.rank === 'K') && 
+                hand.some(c => c.rank === 'Q');
+            
+            const isStraightFlush = isFlush && isStraight();
+            
+            if (isRoyalFlush) {
+                handValue = { name: 'ロイヤルフラッシュ', multiplier: 10 };
+            } else if (isStraightFlush) {
+                handValue = { name: 'ストレートフラッシュ', multiplier: 8 };
+            } else if (counts[0] === 4) {
+                handValue = { name: 'フォーカード', multiplier: 7 };
+            } else if (counts[0] === 3 && counts[1] === 2) {
+                handValue = { name: 'フルハウス', multiplier: 6 };
+            } else if (isFlush) {
+                handValue = { name: 'フラッシュ', multiplier: 5 };
+            } else if (isStraight()) {
+                handValue = { name: 'ストレート', multiplier: 4 };
+            } else if (counts[0] === 3) {
+                handValue = { name: 'スリーカード', multiplier: 3 };
+            } else if (counts[0] === 2 && counts[1] === 2) {
+                handValue = { name: 'ツーペア', multiplier: 2 };
+            } else if (counts[0] === 2) {
+                handValue = { name: 'ワンペア', multiplier: 1.5 };
+            }
+            
+            return handValue;
+        }
+
+
+
+        // 次の階層
+        function nextFloor() {
+            gameState.floor++;
+            addMessage(`⬇️ 階層${gameState.floor}に到達した！ ⬇️`, true);
+            generateDungeon();
+            renderDungeon();
+            
+            // 新しい階層でもスクロール
+            setTimeout(() => {
+                scrollToPlayer();
+            }, 100);
+        }
+
+        // メッセージ追加
+        function addMessage(text, important = false, className = '') {
+            const messageDiv = document.getElementById('messageLog');
+            const message = document.createElement('div');
+            message.className = 'message' + (important ? ' important' : '') + (className ? ' ' + className : '');
+            
+            if (className === 'battle-hand' || className === 'damage' || className === 'exp-gain' || className === 'gold-gain') {
+                message.innerHTML = `[${gameState.turn}] ${text}`;
+            } else {
+                message.textContent = `[${gameState.turn}] ${text}`;
+            }
+            
+            messageDiv.appendChild(message);
+            messageDiv.scrollTop = messageDiv.scrollHeight;
+            
+            // 古いメッセージを削除
+            while (messageDiv.children.length > 50) {
+                messageDiv.removeChild(messageDiv.firstChild);
+            }
+        }
+
+        // UI更新
+        function updateUI() {
+            document.getElementById('floor').textContent = gameState.floor;
+            document.getElementById('hp').textContent = `${gameState.player.hp}/${gameState.player.maxHp}`;
+            document.getElementById('attack').textContent = gameState.player.attack;
+            document.getElementById('defense').textContent = gameState.player.defense;
+            document.getElementById('turn').textContent = gameState.turn;
+            document.getElementById('score').textContent = gameState.score;
+            document.getElementById('level').textContent = gameState.player.level;
+            document.getElementById('exp').textContent = `${gameState.player.exp}/${gameState.player.expToNext}`;
+            document.getElementById('gold').textContent = gameState.player.gold;
+            document.getElementById('cardDraw').textContent = gameState.player.cardDraw;
+            
+            // インベントリ更新
+            const inventoryDiv = document.getElementById('inventoryList');
+            inventoryDiv.innerHTML = '';
+            gameState.player.inventory.forEach((item, index) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'inventory-item';
+                itemDiv.innerHTML = `[${index + 1}] ${item.symbol} ${item.name}`;
+                itemDiv.style.color = item.color;
+                itemDiv.onclick = () => useItem(index);
+                inventoryDiv.appendChild(itemDiv);
+            });
+        }
+
+        // ゲームオーバー
+        function gameOver(cause) {
+            document.getElementById('gameOver').style.display = 'block';
+            document.getElementById('deathCause').textContent = cause;
+            document.getElementById('finalScore').textContent = gameState.score;
+            document.getElementById('finalFloor').textContent = gameState.floor;
+        }
+
+        // キーボード入力
+        document.addEventListener('keydown', (e) => {
+            if (document.getElementById('gameOver').style.display === 'block') return;
+            switch (e.key.toLowerCase()) {
+                case 'w':
+                case 'arrowup':
+                    movePlayer(0, -1);
+                    break;
+                case 's':
+                case 'arrowdown':
+                    movePlayer(0, 1);
+                    break;
+                case 'a':
+                case 'arrowleft':
+                    movePlayer(-1, 0);
+                    break;
+                case 'd':
+                case 'arrowright':
+                    movePlayer(1, 0);
+                    break;
+                case ' ':
+                    // 待機
+                    gameState.turn++;
+                    enemyTurn();
+                    updateUI();
+                    renderDungeon();
+                    break;
+                case '1': case '2': case '3':
+                case '4': case '5': case '6':
+                case '7': case '8': case '9':
+                    useItem(parseInt(e.key) - 1);
+                    break;
+            }
+        });
+
+        // ゲーム開始
+        function startGame() {
+            document.getElementById('titleScreen').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'flex';
+            
+            generateDungeon();
+            renderDungeon();
+            updateUI();
+            
+            // 初回レンダリング後に少し遅延してスクロール
+            setTimeout(() => {
+                scrollToPlayer();
+            }, 100);
+            
+            addMessage('⚔️ ダンジョンに入った... ⚔️', true);
+            addMessage('階段(▼)を探して深層を目指せ！');
+        }
+        
+        // Touch Controls Event Listeners
+        document.getElementById('dpad-up').addEventListener('click', () => movePlayer(0, -1));
+        document.getElementById('dpad-down').addEventListener('click', () => movePlayer(0, 1));
+        document.getElementById('dpad-left').addEventListener('click', () => movePlayer(-1, 0));
+        document.getElementById('dpad-right').addEventListener('click', () => movePlayer(1, 0));
+        document.getElementById('action-wait').addEventListener('click', () => {
+            gameState.turn++;
+            enemyTurn();
+            updateUI();
+            renderDungeon();
+        });
+
+    </script>
+</body>
+</html>
+
