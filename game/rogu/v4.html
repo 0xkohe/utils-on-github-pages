@@ -34,6 +34,7 @@
             border: 2px solid #0f0;
             background: #000;
             box-shadow: 0 0 20px #0f0;
+            position: relative; /* For toast positioning */
         }
 
         #titleScreen {
@@ -373,19 +374,6 @@
             border-left-color: #ffd700;
         }
 
-        .message.battle-hand {
-            color: #fff;
-            font-weight: bold;
-            opacity: 1;
-            font-size: 1.1rem;
-            padding: 8px 12px;
-            margin: 8px 0;
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
-            border-left: 4px solid #667eea;
-            border-radius: 5px;
-            text-shadow: 0 0 10px rgba(102, 126, 234, 0.8);
-        }
-
         .message.damage {
             color: #ff4444;
             font-weight: bold;
@@ -594,6 +582,66 @@
             font-size: 1.2rem;
         }
 
+        /* --- MODIFIED: Combat Toast Styles --- */
+        #combatToastContainer {
+            position: absolute;
+            top: 80px; /* Below status bar */
+            left: 20px;
+            z-index: 1000;
+            pointer-events: none;
+            width: auto;
+            max-width: 450px;
+        }
+
+        .combat-toast {
+            pointer-events: auto;
+            padding: 10px 15px; /* Smaller padding */
+            background: rgba(10, 10, 20, 0.95);
+            border: 2px solid #0f0;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.7), inset 0 0 8px rgba(0, 255, 0, 0.2);
+            text-align: left; /* Align text left */
+            animation: fadeInToast 0.5s ease-out forwards, fadeOutToast 0.5s ease-in 3.5s forwards;
+            opacity: 0;
+            width: auto; /* Fit content */
+        }
+
+        @keyframes fadeInToast {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes fadeOutToast {
+            from {
+                opacity: 1;
+                transform: translateX(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+        }
+
+        .combat-toast .cards {
+            margin-bottom: 10px;
+        }
+
+        .combat-toast .result {
+            display: flex;
+            justify-content: flex-start; /* Align left */
+            align-items: center;
+            gap: 10px;
+            font-size: 1.1rem;
+        }
+        /* --- End of Combat Toast Styles --- */
+
+
         /* Responsive Styles */
         @media (max-width: 768px) {
             #gameContainer {
@@ -634,13 +682,29 @@
             }
 
             #gameOver {
-                 width: 90vw;
-                 padding: 20px;
-                 min-width: 0;
+                width: 90vw;
+                padding: 20px;
+                min-width: 0;
             }
 
             #gameOver h2 {
                 font-size: 2rem;
+            }
+
+            /* Toast on Mobile */
+            #combatToastContainer {
+                top: 60px;
+                left: 10px;
+                width: auto;
+                max-width: 90%;
+            }
+            .combat-toast {
+                padding: 8px 12px;
+                font-size: 0.8rem;
+            }
+            .combat-toast .result {
+                font-size: 0.9rem;
+                gap: 8px;
             }
         }
 
@@ -659,6 +723,9 @@
                 <p>敵にぶつかると自動でカードバトル！</p>
             </div>
         </div>
+        
+        <!-- Container for temporary combat results -->
+        <div id="combatToastContainer"></div>
 
         <div id="gameScreen">
             <div id="statusBar">
@@ -776,6 +843,9 @@
             hand: [],
             selectedCards: []
         };
+        
+        // --- ADDED: Global variable for toast timer ---
+        let combatToastTimer = null;
 
         // 敵のタイプ
         const enemyTypes = [
@@ -1269,8 +1339,63 @@
                 }
             }
         }
+        
+        // --- MODIFIED: Combat Toast Function ---
+        function showCombatToast(hand, handValue, damage) {
+            const container = document.getElementById('combatToastContainer');
 
-        // 自動攻撃
+            // Clear any existing timer and content to replace the toast
+            if (combatToastTimer) {
+                clearTimeout(combatToastTimer);
+            }
+            container.innerHTML = '';
+
+            // Create the toast element
+            const toast = document.createElement('div');
+            toast.className = 'combat-toast';
+
+            // Create card display
+            const cardDisplay = hand.map(c => {
+                const isRed = c.suit === '♥' || c.suit === '♦';
+                const colorClass = isRed ? 'red' : 'black';
+                return `<span class="card-display ${colorClass}">${c.rank}${c.suit}</span>`;
+            }).join(' ');
+
+            // Create hand name display
+            let handClass = 'hand-name';
+            if (handValue.multiplier >= 7) {
+                handClass += ' epic';
+            } else if (handValue.multiplier >= 5) {
+                handClass += ' high-value';
+            }
+            const handDisplay = `<span class="${handClass}">${handValue.name}</span>`;
+
+            // Create damage display
+            const damageDisplay = `<span class="damage-number-display">${damage}</span> DMG`;
+
+            // Assemble the toast content
+            toast.innerHTML = `
+                <div class="cards">${cardDisplay}</div>
+                <div class="result">
+                    ${handDisplay}
+                    <span>→</span>
+                    ${damageDisplay}
+                </div>
+            `;
+
+            // Add to container
+            container.appendChild(toast);
+
+            // Set a new timer to remove this toast after its animation
+            combatToastTimer = setTimeout(() => {
+                if (toast.parentElement) {
+                   toast.remove();
+                }
+                combatToastTimer = null;
+            }, 4000); 
+        }
+
+        // --- MODIFIED: 自動攻撃 ---
         function autoAttackEnemy(enemy) {
             // カードを自動で引く
             const suits = ['♠', '♥', '♦', '♣'];
@@ -1290,33 +1415,14 @@
             const damage = Math.floor(gameState.player.attack * handValue.multiplier - enemy.defense);
             const actualDamage = Math.max(damage, 1);
             
+            // NEW: Show the toast notification
+            showCombatToast(gameState.hand, handValue, actualDamage);
+            
             enemy.hp -= actualDamage;
             
-            // カードの内容を鮮やかに表示
-            const cardDisplay = gameState.hand.map(c => {
-                const isRed = c.suit === '♥' || c.suit === '♦';
-                const colorClass = isRed ? 'red' : 'black';
-                return `<span class="card-display ${colorClass}">${c.rank}${c.suit}</span>`;
-            }).join(' ');
+            // Add a simplified log message
+            addMessage(`${enemy.name}に${actualDamage}ダメージを与えた。(${handValue.name})`);
             
-            // 役の価値に応じてクラスを設定
-            let handClass = 'hand-name';
-            if (handValue.multiplier >= 7) {
-                handClass += ' epic';
-            } else if (handValue.multiplier >= 5) {
-                handClass += ' high-value';
-            }
-            
-            const handDisplay = `<span class="${handClass}">${handValue.name}</span>`;
-            
-            addMessage(`${cardDisplay} → ${handDisplay}`, false, 'battle-hand');
-            addMessage(`${enemy.name}に <span class="damage-number-display">${actualDamage}</span> ダメージ！`, false, 'damage');
-            
-            // 特別な役の場合は特殊メッセージ
-            if (handValue.multiplier >= 8) {
-                addMessage(`🌟🌟🌟 ${handValue.name.toUpperCase()}!!! 🌟🌟🌟`, true);
-            }
-
             if (enemy.hp <= 0) {
                 // 敵を倒した
                 addMessage(`✨ ${enemy.name}を倒した！ ✨`, true);
@@ -1437,11 +1543,8 @@
             const message = document.createElement('div');
             message.className = 'message' + (important ? ' important' : '') + (className ? ' ' + className : '');
             
-            if (className === 'battle-hand' || className === 'damage' || className === 'exp-gain' || className === 'gold-gain') {
-                message.innerHTML = `[${gameState.turn}] ${text}`;
-            } else {
-                message.textContent = `[${gameState.turn}] ${text}`;
-            }
+            // Allow HTML content for styled messages
+            message.innerHTML = `[${gameState.turn}] ${text}`;
             
             messageDiv.appendChild(message);
             messageDiv.scrollTop = messageDiv.scrollHeight;
